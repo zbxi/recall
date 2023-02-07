@@ -2,7 +2,16 @@
 
 namespace zbxi::recall
 {
-  auto Parser::readNote(std::filesystem::path path) -> Note
+  Notekeeper::Notekeeper(std::filesystem::path databasePath)
+  {
+    connectToDatabase(databasePath);
+  }
+
+  void Notekeeper::connectToDatabase(std::filesystem::path databasePath)
+  {
+  }
+
+  void Notekeeper::readNote(std::filesystem::path path)
   {
     std::fstream file{path, file.binary | file.in | file.ate};
 
@@ -24,9 +33,31 @@ namespace zbxi::recall
     std::chrono::system_clock::time_point systemTime = std::chrono::file_clock::to_sys(fileTime);
     // std::int64_t milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(systemTime.time_since_epoch()).count();
 
-    return Note{
+    m_notes.push_back(Note{
       std::move(buffer),
       systemTime,
-    };
+      std::bind(&Notekeeper::newTag, this, std::placeholders::_1, std::placeholders::_2),
+    });
+  }
+
+  bool Notekeeper::newTag(std::string_view tag, std::span<std::string>* updatedTags)
+  {
+    bool novel{true};
+    std::size_t index{};
+    while(index < m_tags.size()) {
+      if(tag == m_tags[index]) {
+        novel = false;
+        break;
+      }
+      ++index;
+    }
+
+    if(novel) {
+      m_tags.push_back(std::string(tag));
+      *updatedTags = m_tags;
+      return true;
+    }
+
+    return false;
   }
 }

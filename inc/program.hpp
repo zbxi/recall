@@ -6,11 +6,14 @@
 #include <filesystem>
 #include <span>
 //
+#include <sqlite3.h>
+//
 #include "ftxui/component/captured_mouse.hpp"     // ftxui
 #include "ftxui/component/component.hpp"          // Menu
 #include "ftxui/component/component_options.hpp"  // MenuOption
 #include "ftxui/component/screen_interactive.hpp" // ScreenInteractive
 #include "ftxui/dom/elements.hpp"
+
 
 namespace zbxi::recall
 {
@@ -23,10 +26,9 @@ namespace zbxi::recall
   private:
     void printHeaders(std::span<zbxi::recall::Header> headers);
     void printTime(zbxi::recall::Note& note);
+    void printTags(Note& note);
 
   private:
-    std::vector<Note> m_notes{};
-    std::vector<std::string> m_tags{};
   };
 }
 

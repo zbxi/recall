@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <span>
 #include <string_view>
 #include <vector>
@@ -10,6 +11,7 @@
 
 namespace zbxi::recall
 {
+  using TagObserver = std::function<bool(std::string_view, std::span<std::string>*)>;
   struct Header
   {
     std::int_fast8_t level{0};
@@ -31,14 +33,16 @@ namespace zbxi::recall
       card = 3,
     };
 
-    Note(std::string const& text, time_point modificationDate, Label label = Label::none, std::vector<std::string_view> tags = {});
-    Note(std::string&& text, time_point modificationDate, Label label = Label::none, std::vector<std::string_view> tags = {});
+    Note(std::string const& text, time_point modificationDate, TagObserver tagObserver, Label label = Label::none, std::vector<std::string_view> tags = {});
+    Note(std::string&& text, time_point modificationDate, TagObserver tagObserver, Label label = Label::none, std::vector<std::string_view> tags = {});
 
     auto text() -> std::string_view { return m_text; }
     auto label() -> Label& { return m_label; }
-    auto tags() -> std::vector<std::string_view>& { return m_tags; }
+    auto tags() -> std::span<std::string_view> { return m_tags; }
     auto headers() -> std::span<Header> { return m_headers; }
     auto modificationDate() -> time_point { return m_modificationDate; }
+
+    void newTag(std::string_view tag);
 
   private:
     void init();
@@ -52,8 +56,13 @@ namespace zbxi::recall
   private:
     std::string m_text{};
     std::vector<Header> m_headers{};
+
+    // Info
     time_point m_modificationDate{};
     Label m_label{};
     std::vector<std::string_view> m_tags{};
+
+    // Observers
+    TagObserver m_newTagObserver;
   };
 }

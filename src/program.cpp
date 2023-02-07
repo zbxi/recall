@@ -10,11 +10,12 @@ namespace zbxi::recall
   {
     using namespace zbxi;
     std::filesystem::path path{"/tmp/Projects.md"};
-    recall::Parser p;
-    recall::Note note = p.readNote(path);
+    recall::Notekeeper manager{"/tmp/database.db"};
+    manager.readNote(path);
 
-    printTime(note);
+    printTime(manager.notes().front());
     // printHeaders(headers);
+    printTags(manager.notes().front());
   }
 
   void Program::printHeaders(std::span<zbxi::recall::Header> headers)
@@ -38,5 +39,14 @@ namespace zbxi::recall
   {
     auto time = std::chrono::system_clock::to_time_t(note.modificationDate());
     std::cout << std::asctime(std::localtime(&time));
+  }
+
+  void Program::printTags(Note& note)
+  {
+    std::cout << "Tags: [ ";
+    for(auto& e : note.tags()) {
+      std::cout << e << " ";
+    }
+    std::cout << "]" << std::endl;
   }
 }

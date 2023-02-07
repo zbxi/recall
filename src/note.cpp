@@ -2,20 +2,22 @@
 
 namespace zbxi::recall
 {
-  Note::Note(std::string const& text, time_point modificationDate, Label label, std::vector<std::string_view> tags) :
+  Note::Note(std::string const& text, time_point modificationDate, TagObserver tagObserver, Label label, std::vector<std::string_view> tags) :
     m_text{text},
     m_modificationDate{modificationDate},
     m_label{label},
-    m_tags{tags}
+    m_tags{tags},
+    m_newTagObserver{tagObserver}
   {
     init();
   }
 
-  Note::Note(std::string&& text, time_point modificationDate, Label label, std::vector<std::string_view> tags) :
+  Note::Note(std::string&& text, time_point modificationDate, TagObserver tagObserver, Label label, std::vector<std::string_view> tags) :
     m_text{std::move(text)},
     m_modificationDate{modificationDate},
     m_label{label},
-    m_tags{tags}
+    m_tags{tags},
+    m_newTagObserver{tagObserver}
   {
     init();
   }
@@ -24,6 +26,17 @@ namespace zbxi::recall
   {
     auto constexpr lvl = 1;
     parseText(m_text, &m_headers, lvl);
+  }
+
+  void Note::newTag(std::string_view tag)
+  {
+    std::span<std::string> updatedTags{};
+    if(m_newTagObserver(tag, &updatedTags)) {
+      m_tags.clear();
+      for(auto& e : updatedTags) {
+        m_tags.push_back(e);
+      }
+    }
   }
 
   void Note::parseText(std::string_view text, std::vector<Header>* headers, std::int_fast8_t headerLevel)
