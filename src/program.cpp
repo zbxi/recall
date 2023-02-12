@@ -4,18 +4,22 @@ namespace zbxi::recall
 {
   Program::Program()
   {
+    m_notekeeper = std::make_unique<Notekeeper>("/tmp/database.db");
+    m_presenter = std::make_unique<Presenter>(m_notekeeper.get());
+    m_controller = std::make_unique<Controller>(m_presenter.get());
+    m_interface = std::make_unique<Tui>(m_controller.get(), m_presenter.get());
   }
 
   void Program::run()
   {
-    using namespace zbxi;
+    m_interface->run();
+    return;
     std::filesystem::path path{"/tmp/Projects.md"};
-    recall::Notekeeper manager{"/tmp/database.db"};
-    manager.readNote(path);
+    m_notekeeper->readNote(path);
 
-    printTime(manager.notes().front());
     // printHeaders(headers);
-    printTags(manager.notes().front());
+    printTime(m_notekeeper->notes().front());
+    printTags(m_notekeeper->notes().front());
   }
 
   void Program::printHeaders(std::span<zbxi::recall::Header> headers)

@@ -11,7 +11,6 @@
 
 namespace zbxi::recall
 {
-  using TagObserver = std::function<bool(std::string_view, std::span<std::string>*)>;
   struct Header
   {
     std::int_fast8_t level{0};
@@ -21,6 +20,7 @@ namespace zbxi::recall
 
   class Note
   {
+    using TagObserver = std::function<bool(std::string_view, std::span<std::string>*)>;
     using time_point = std::chrono::system_clock::time_point;
 
   public:

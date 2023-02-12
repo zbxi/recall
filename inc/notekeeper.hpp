@@ -26,6 +26,7 @@ namespace zbxi::recall
   {
   public:
     Notekeeper(std::filesystem::path databasePath);
+    ~Notekeeper();
 
     void readNote(std::filesystem::path path);
     auto notes() -> std::span<Note> { return m_notes; }
@@ -33,9 +34,13 @@ namespace zbxi::recall
   private:
     bool newTag(std::string_view tag, std::span<std::string>* updatedTags);
     void connectToDatabase(std::filesystem::path databasePath);
+    void initDatabase();
+    void checkSqlite(int result);
 
   private:
     std::vector<Note> m_notes{};
     std::vector<std::string> m_tags{};
+    //
+    sqlite3* m_sqliteConnection{nullptr};
   };
 }
