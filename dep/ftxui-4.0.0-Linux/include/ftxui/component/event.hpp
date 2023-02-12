@@ -38,6 +38,11 @@ struct Event {
   static const Event ArrowUp;
   static const Event ArrowDown;
 
+  static const Event ArrowLeftCtrl;
+  static const Event ArrowRightCtrl;
+  static const Event ArrowUpCtrl;
+  static const Event ArrowDownCtrl;
+
   // --- Other ---
   static const Event Backspace;
   static const Event Delete;
@@ -61,9 +66,7 @@ struct Event {
   std::string character() const { return input_; }
 
   bool is_mouse() const { return type_ == Type::Mouse; }
-  struct Mouse& mouse() {
-    return mouse_;
-  }
+  struct Mouse& mouse() { return mouse_; }
 
   bool is_cursor_reporting() const { return type_ == Type::CursorReporting; }
   int cursor_x() const { return cursor_.x; }

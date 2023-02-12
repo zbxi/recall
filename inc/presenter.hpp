@@ -1,5 +1,6 @@
 #pragma once
 
+#include "configuration.hpp"
 #include "notekeeper.hpp"
 
 #include <string>
@@ -13,31 +14,41 @@ namespace zbxi::recall
   class Presenter
   {
   public:
-    Presenter(Notekeeper* notekeeper);
+    Presenter(Notekeeper* notekeeper, Configuration* Configuration);
     ~Presenter();
 
-    auto vaultHistory() -> std::vector<std::string>&;
-
+    auto menuEntrySelector() -> int& { return m_selectorMenuEntry; }
+    auto vaultHistory() -> std::vector<std::string>& { return m_configuration->vaultHistory(); }
+    auto menuEntryHome() -> int& { return m_homeMenuEntry; }
     auto inputStrings() -> std::vector<std::string>& { return m_userInputStrings; }
-    auto menuEntry() -> int& { return m_menuEntry; }
     auto errorMessage() -> std::string& { return m_errorMessage; }
     auto homeMenuEntries() -> std::vector<std::string> const& { return m_homeMenuEntries; }
-    auto notes() -> Notekeeper& { return *m_notekeeper; }
+    auto explorerEntries() -> std::vector<std::string>&;
+    auto menuEntryExplorer() -> int& { return m_explorerMenuEntry; }
+
+    void setCurrentPath(std::filesystem::path);
 
   private:
-    Notekeeper* m_notekeeper{};
+    void queryFolderFiles(std::filesystem::path path);
 
-    std::string m_vaultPath{};
+    Notekeeper* m_notekeeper{};
+    Configuration* m_configuration{};
+
     std::string m_errorMessage{};
     std::vector<std::string> m_userInputStrings{};
-    int m_menuEntry{};
+    int m_selectorMenuEntry{};
+    int m_homeMenuEntry{};
+    int m_explorerMenuEntry{};
 
-    std::vector<std::string> m_vaultHistory{};
     std::vector<std::string> m_homeMenuEntries{
       "Recaller",
       "File Explorer",
       "Configuration",
       "Statistics",
     };
+
+    bool m_explorerQueried;
+    std::vector<std::string> m_explorerEntries{"1", "2", "3"};
+    std::filesystem::path m_currentPath{};
   };
 }

@@ -1,5 +1,3 @@
---- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
-
 set_toolchains("clang")
 set_languages("c++20")
 set_defaultmode("debug")
@@ -26,8 +24,6 @@ set_default(true)
 set_kind("binary")
 add_files("src/**.cpp")
 add_packages("sqlite")
-add_linkdirs("dep/ftxui/lib/x86_64-linux-gnu")
+add_linkdirs("dep/ftxui-4.0.0-Linux/lib")
 add_links(":libftxui-component.a", ":libftxui-dom.a", ":libftxui-screen.a")
-add_includedirs("inc", "dep/ftxui/include")
-
---- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
+add_includedirs("inc", "dep/ftxui-4.0.0-Linux/include")

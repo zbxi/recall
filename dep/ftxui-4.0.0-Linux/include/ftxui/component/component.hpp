@@ -7,10 +7,10 @@
 #include <utility>     // for forward
 #include <vector>      // for vector
 
-#include "ftxui/component/component_base.hpp"     // for Component, Components
-#include "ftxui/component/component_options.hpp"  // for ButtonOption, CheckboxOption, InputOption (ptr only), MenuEntryOption (ptr only), MenuOption, RadioboxOption (ptr only)
-#include "ftxui/dom/elements.hpp"                 // for Element
-#include "ftxui/util/ref.hpp"  // for Ref, ConstStringRef, ConstStringListRef, StringRef
+#include "ftxui/component/component_base.hpp"  // for Component, Components
+#include "ftxui/component/component_options.hpp"  // for ButtonOption, CheckboxOption, MenuOption
+#include "ftxui/dom/elements.hpp"  // for Element
+#include "ftxui/util/ref.hpp"  // for ConstRef, Ref, ConstStringRef, ConstStringListRef, StringRef
 
 namespace ftxui {
 struct ButtonOption;
@@ -67,8 +67,26 @@ Component Radiobox(ConstStringListRef entries,
                    Ref<RadioboxOption> option = {});
 Component Toggle(ConstStringListRef entries, int* selected);
 
-template <class T>  // T = {int, float, long}
-Component Slider(ConstStringRef label, T* value, T min, T max, T increment);
+// General slider constructor:
+template <typename T>
+Component Slider(SliderOption<T> options = {});
+
+// Shorthand without the `SliderOption` constructor:
+Component Slider(ConstStringRef label,
+                 Ref<int> value,
+                 ConstRef<int> min = 0,
+                 ConstRef<int> max = 100,
+                 ConstRef<int> increment = 5);
+Component Slider(ConstStringRef label,
+                 Ref<float> value,
+                 ConstRef<float> min = 0.f,
+                 ConstRef<float> max = 100.f,
+                 ConstRef<float> increment = 5.f);
+Component Slider(ConstStringRef label,
+                 Ref<long> value,
+                 ConstRef<long> min = 0l,
+                 ConstRef<long> max = 100l,
+                 ConstRef<long> increment = 5l);
 
 Component ResizableSplitLeft(Component main, Component back, int* main_size);
 Component ResizableSplitRight(Component main, Component back, int* main_size);
@@ -88,9 +106,24 @@ Component Maybe(Component, std::function<bool()>);
 ComponentDecorator Maybe(const bool* show);
 ComponentDecorator Maybe(std::function<bool()>);
 
+Component Modal(Component main, Component modal, const bool* show_modal);
+ComponentDecorator Modal(Component modal, const bool* show_modal);
+
 Component Collapsible(ConstStringRef label,
                       Component child,
                       Ref<bool> show = false);
+
+Component Hoverable(Component component, bool* hover);
+Component Hoverable(Component component,
+                    std::function<void()> on_enter,
+                    std::function<void()> on_leave);
+Component Hoverable(Component component,  //
+                    std::function<void(bool)> on_change);
+ComponentDecorator Hoverable(bool* hover);
+ComponentDecorator Hoverable(std::function<void()> on_enter,
+                             std::function<void()> on_leave);
+ComponentDecorator Hoverable(std::function<void(bool)> on_change);
+
 }  // namespace ftxui
 
 #endif /* end of include guard: FTXUI_COMPONENT_HPP */

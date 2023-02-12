@@ -2,26 +2,21 @@
 
 namespace zbxi::recall
 {
-  Notekeeper::Notekeeper(std::filesystem::path databasePath)
+  Notekeeper::Notekeeper()
   {
-    connectToDatabase(databasePath);
-    sqlite3_stmt* stmt{};
-
-    auto prepare = [this, &stmt]() {
-      std::string statement = "";
-      char const* out_tail{};
-
-      checkSqlite(sqlite3_prepare_v2(m_sqliteConnection, statement.c_str(), statement.length(), &stmt, &out_tail));
-    };
-
-    auto evaluate = [this, &stmt]() {
-
-    };
   }
 
   Notekeeper::~Notekeeper()
   {
-    sqlite3_close_v2(m_sqliteConnection);
+    saveToDatabase();
+    sqlite3_close_v2(m_connection);
+  }
+
+  void Notekeeper::openVault(std::filesystem::path vaultPath)
+  {
+    connectToDatabase(std::filesystem::path{vaultPath}.append("recaller.db"));
+    parseNotes();
+    m_vaultPath = vaultPath;
   }
 
   void Notekeeper::connectToDatabase(std::filesystem::path databasePath)
@@ -32,7 +27,7 @@ namespace zbxi::recall
     }
 
     int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX;
-    checkSqlite(sqlite3_open_v2(databasePath.c_str(), &m_sqliteConnection, flags, nullptr));
+    checkSqlite(sqlite3_open_v2(databasePath.c_str(), &m_connection, flags, nullptr));
 
     if(novel) {
       initDatabase();
@@ -41,12 +36,48 @@ namespace zbxi::recall
 
   void Notekeeper::initDatabase()
   {
-    std::string stmt = "CREATE TABLE Notes("
-                       "  path VARCHAR(255) PRIMARY KEY,"
-                       "  modificationDate INTEGER,"
-                       "  label VARCHAR(24),"
-                       "  tags VARCHAR)";
-    checkSqlite(sqlite3_exec(m_sqliteConnection, stmt.c_str(), nullptr, nullptr, nullptr));
+    std::string statement{
+      "CREATE TABLE " + m_tableName + "(" +
+        "path VARCHAR(255) PRIMARY KEY,"
+        "modificationDate INTEGER,"
+        "label VARCHAR(24),"
+        "tags VARCHAR"
+        ");",
+    };
+
+    checkSqlite(sqlite3_exec(m_connection, statement.c_str(), nullptr, nullptr, nullptr));
+  }
+
+  void Notekeeper::parseNotes()
+  {
+    return;
+    //  _
+    // / \
+    //  |
+    //  |
+    //  |
+    //  |
+    //  |
+    //  |
+    //  |
+    //  |
+    //  |
+    //  |
+    //  |
+    //  |
+    //  |
+    //  |
+    //  |
+
+    for(auto& e : std::filesystem::recursive_directory_iterator(m_vaultPath)) {
+      if(!e.is_regular_file()) {
+        continue;
+      }
+
+      if(e.path().extension() == ".md") {
+        readNote(e.path());
+      }
+    }
   }
 
   void Notekeeper::readNote(std::filesystem::path path)
@@ -99,10 +130,14 @@ namespace zbxi::recall
     return false;
   }
 
-  void Notekeeper::checkSqlite(int result)
+  void Notekeeper::saveToDatabase()
   {
-    if(result != SQLITE_OK) {
-      throw std::runtime_error(sqlite3_errmsg(m_sqliteConnection));
+  }
+
+  void Notekeeper::checkSqlite(int result, int expected)
+  {
+    if(result != expected) {
+      throw std::runtime_error(sqlite3_errmsg(m_connection));
     }
   }
 }

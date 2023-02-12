@@ -36,6 +36,7 @@ namespace zbxi::recall
     Note(std::string const& text, time_point modificationDate, TagObserver tagObserver, Label label = Label::none, std::vector<std::string_view> tags = {});
     Note(std::string&& text, time_point modificationDate, TagObserver tagObserver, Label label = Label::none, std::vector<std::string_view> tags = {});
 
+    auto path() -> std::string_view { return m_filePath; }
     auto text() -> std::string_view { return m_text; }
     auto label() -> Label& { return m_label; }
     auto tags() -> std::span<std::string_view> { return m_tags; }
@@ -58,6 +59,7 @@ namespace zbxi::recall
     std::vector<Header> m_headers{};
 
     // Info
+    std::string m_filePath{};
     time_point m_modificationDate{};
     Label m_label{};
     std::vector<std::string_view> m_tags{};

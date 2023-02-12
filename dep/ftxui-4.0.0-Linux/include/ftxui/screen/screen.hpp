@@ -30,6 +30,8 @@ struct Pixel {
   bool dim : 1;
   bool inverted : 1;
   bool underlined : 1;
+  bool underlined_double : 1;
+  bool strikethrough : 1;
   bool automerge : 1;
 
   Pixel()
@@ -38,6 +40,8 @@ struct Pixel {
         dim(false),
         inverted(false),
         underlined(false),
+        underlined_double(false),
+        strikethrough(false),
         automerge(false) {}
 };
 
@@ -80,6 +84,17 @@ class Screen {
   struct Cursor {
     int x = 0;
     int y = 0;
+
+    enum Shape {
+      Hidden = 0,
+      BlockBlinking = 1,
+      Block = 2,
+      UnderlineBlinking = 3,
+      Underline = 4,
+      BarBlinking = 5,
+      Bar = 6,
+    };
+    Shape shape;
   };
   Cursor cursor() const { return cursor_; }
   void SetCursor(Cursor cursor) { cursor_ = cursor; }
@@ -91,8 +106,6 @@ class Screen {
   int dimy_;
   std::vector<std::vector<Pixel>> pixels_;
   Cursor cursor_;
-
- private:
 };
 
 }  // namespace ftxui

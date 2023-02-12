@@ -11,7 +11,7 @@ namespace zbxi::recall
   class Controller
   {
   public:
-    Controller(Presenter* presenter);
+    Controller(Notekeeper* notekeeper, Presenter* presenter);
     ~Controller();
 
     bool openVault(std::filesystem::path path);

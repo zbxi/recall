@@ -25,22 +25,35 @@ namespace zbxi::recall
   class Notekeeper
   {
   public:
-    Notekeeper(std::filesystem::path databasePath);
+    Notekeeper();
     ~Notekeeper();
 
-    void readNote(std::filesystem::path path);
+    void openVault(std::filesystem::path vaultPath);
+
+    auto vaultPath() -> std::string const& { return m_vaultPath; }
+    auto vaultHistory() -> std::vector<std::string>&;
     auto notes() -> std::span<Note> { return m_notes; }
+    bool connected() { return m_connection != nullptr; }
 
   private:
-    bool newTag(std::string_view tag, std::span<std::string>* updatedTags);
     void connectToDatabase(std::filesystem::path databasePath);
     void initDatabase();
-    void checkSqlite(int result);
+    void parseNotes();
+    void readNote(std::filesystem::path path);
+    void saveToDatabase();
+
+    void checkSqlite(int result, int expected = SQLITE_OK);
+
+    // Note Callback
+    bool newTag(std::string_view tag, std::span<std::string>* updatedTags);
 
   private:
     std::vector<Note> m_notes{};
     std::vector<std::string> m_tags{};
     //
-    sqlite3* m_sqliteConnection{nullptr};
+    sqlite3* m_connection{nullptr};
+
+    std::string m_vaultPath;
+    std::string m_tableName{"Notes"};
   };
 }

@@ -2,7 +2,8 @@
 
 namespace zbxi::recall
 {
-  Controller::Controller(Presenter* presenter) :
+  Controller::Controller(Notekeeper* notekeeper, Presenter* presenter) :
+    m_notekeeper{notekeeper},
     m_presenter{presenter}
   {
   }
@@ -18,20 +19,35 @@ namespace zbxi::recall
       return false;
     }
 
+    bool valid{false};
     if(std::filesystem::is_directory(path)) {
-      // searches for are any .md
+      // searches for any .md file
       for(auto& dir_entry : std::filesystem::directory_iterator(path)) {
         if(dir_entry.path().extension() == ".md") {
-          m_presenter->errorMessage() = {};
-          m_presenter->vaultHistory().push_back(path);
-          m_presenter->inputStrings().front() = {};
-          return true;
+          valid = true;
+          break;
         }
+      }
+
+      if(valid) {
+        // Notekeeper
+        m_notekeeper->openVault(path);
+
+        // Presenter
+        m_presenter->errorMessage() = {};
+        m_presenter->inputStrings().front() = {};
+        m_presenter->setCurrentPath("");
+        auto& history = m_presenter->vaultHistory();
+        if(std::find(history.begin(), history.end(), path) == history.end()) {
+          history.push_back(path);
+        }
+
+        return true;
       }
 
       m_presenter->errorMessage() = "There aren't any .md files there";
     };
 
-    return false;
+    return valid;
   }
 }
