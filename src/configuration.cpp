@@ -24,6 +24,10 @@ namespace zbxi::recall
 
   void Configuration::connectToDatabase(std::string databaseName)
   {
+    if(connected()) {
+      return;
+    }
+
     // Create config directory
     std::filesystem::path configPath = std::string{std::getenv("HOME")} + "/.recall";
     if(!std::filesystem::exists(configPath)) {

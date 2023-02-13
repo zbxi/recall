@@ -15,6 +15,7 @@ namespace zbxi::recall
     Configuration();
     ~Configuration();
 
+    bool connected() { return m_connection != nullptr; }
     auto vaultHistory() -> std::vector<std::string>&;
 
   private:
