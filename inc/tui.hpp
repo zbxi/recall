@@ -25,8 +25,8 @@ namespace zbxi::recall
 
   private:
     void buildScreens();
-    void loop(ftxui::Component screenComponent);
-    void exit();
+    void open(ftxui::Component screenComponent);
+    void close();
 
     std::unordered_map<std::string, std::function<ftxui::Component()>> m_screenComponents{};
     // std::unordered_map<std::string, ftxui::Component> m_components{};

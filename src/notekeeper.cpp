@@ -14,10 +14,13 @@ namespace zbxi::recall
 
   void Notekeeper::openVault(std::filesystem::path vaultPath)
   {
-    if(connected() && m_vaultPath == vaultPath) {
-      return;
+    if(connected()) {
+      if(m_vaultPath == vaultPath) {
+        return;
+      } else {
+        sqlite3_close_v2(m_connection);
+      }
     }
-
     connectToDatabase(std::filesystem::path{vaultPath}.append("recaller.db"));
     parseNotes();
     m_vaultPath = vaultPath;

@@ -3,6 +3,8 @@
 #include "configuration.hpp"
 #include "notekeeper.hpp"
 
+#include <cassert>
+#include <deque>
 #include <string>
 #include <vector>
 
@@ -23,13 +25,15 @@ namespace zbxi::recall
     auto inputStrings() -> std::vector<std::string>& { return m_userInputStrings; }
     auto errorMessage() -> std::string& { return m_errorMessage; }
     auto homeMenuEntries() -> std::vector<std::string> const& { return m_homeMenuEntries; }
-    auto explorerEntries() -> std::vector<std::string>&;
+    auto menuExplorerEntries() -> std::vector<std::string>&;
     auto menuEntryExplorer() -> int& { return m_explorerMenuEntry; }
+
+    auto explorerEntries() -> std::deque<std::filesystem::path> const& { return m_explorerEntries; }
 
     void setCurrentPath(std::filesystem::path);
 
   private:
-    void queryFolderFiles(std::filesystem::path path);
+    void queryFolderFiles(std::filesystem::path folderPath);
 
     Notekeeper* m_notekeeper{};
     Configuration* m_configuration{};
@@ -48,7 +52,8 @@ namespace zbxi::recall
     };
 
     bool m_explorerQueried;
-    std::vector<std::string> m_explorerEntries{"1", "2", "3"};
+    std::deque<std::filesystem::path> m_explorerEntries{};
+    std::vector<std::string> m_explorerMenuEntries{};
     std::filesystem::path m_currentPath{};
   };
 }

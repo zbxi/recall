@@ -16,21 +16,21 @@ namespace zbxi::recall
   {
     using namespace ftxui;
     buildScreens();
-    loop(m_screenComponents.at("Vault Selector")());
+    open(m_screenComponents.at("Vault Selector")());
   }
 
-  void Tui::loop(ftxui::Component screenComponent)
+  void Tui::open(ftxui::Component screenComponent)
   {
     ftxui::ScreenInteractive screen = ftxui::ScreenInteractive::Fullscreen();
     m_exitClosures.push(screen.ExitLoopClosure());
-    ftxui::Loop loop{&screen, screenComponent};
-    while(!loop.HasQuitted()) {
-      loop.RunOnceBlocking();
-    }
+    screen.Loop(screenComponent);
   }
 
-  void Tui::exit()
+  void Tui::close()
   {
+    auto exit = m_exitClosures.top();
+    m_exitClosures.pop();
+    exit();
   }
 
   void Tui::buildScreens()
@@ -38,9 +38,7 @@ namespace zbxi::recall
     using namespace ftxui;
     auto quitHandler = [this](Event event) {
       if(event == Event::Character('q')) {
-        auto exit = m_exitClosures.top();
-        m_exitClosures.pop();
-        exit();
+        close();
         return true;
       }
       return false;
@@ -55,7 +53,7 @@ namespace zbxi::recall
           int& entry = m_presenter->menuEntrySelector();
           auto path = m_presenter->vaultHistory().at(entry);
           if(this->m_controller->openVault(path)) {
-            loop(m_screenComponents.at("Home")());
+            open(m_screenComponents.at("Home")());
           }
         }};
       Component menu = Menu(&m_presenter->vaultHistory(), &m_presenter->menuEntrySelector(), menuOption);
@@ -65,7 +63,7 @@ namespace zbxi::recall
         .on_enter = {[this] {
           auto path = m_presenter->inputStrings().front();
           if(this->m_controller->openVault(path)) {
-            loop(m_screenComponents.at("Home")());
+            open(m_screenComponents.at("Home")());
           }
         }},
       };
@@ -122,7 +120,7 @@ namespace zbxi::recall
           int& entry = m_presenter->menuEntryHome();
           auto option = m_presenter->homeMenuEntries().at(entry);
           if(this->m_screenComponents.contains(option)) {
-            loop(m_screenComponents.at(option)());
+            open(m_screenComponents.at(option)());
           }
         },
       };
@@ -134,9 +132,15 @@ namespace zbxi::recall
 
     auto fileExplorer = [&, this] {
       MenuOption menuOption{
-        .on_enter = {},
+        .on_enter = [this] {
+          int& entry = m_presenter->menuEntryExplorer();
+          auto path = m_presenter->explorerEntries().at(entry);
+          if(this->m_controller->openVault(path)) {
+            open(m_screenComponents.at("Home")());
+          }
+        },
       };
-      Component menu = Menu(&m_presenter->explorerEntries(), &m_presenter->menuEntryExplorer(), menuOption);
+      Component menu = Menu(&m_presenter->menuExplorerEntries(), &m_presenter->menuEntryExplorer(), menuOption);
 
       auto shouldPreview = []() -> bool {
         return true;
@@ -144,7 +148,7 @@ namespace zbxi::recall
       Component preview = Renderer([] {
         return hbox({
           separator(),
-          text("preview"),
+          vbox({frame(text("preview"))}),
         });
       }) | Maybe(shouldPreview);
 
@@ -158,7 +162,7 @@ namespace zbxi::recall
       Component screenComponent = window | borderRounded | center | CatchEvent(quitHandler);
       m_screenComponents.insert({"File Explorer",
         [this, screenComponent] {
-          static_cast<void>(m_presenter->explorerEntries());
+          static_cast<void>(m_presenter->menuExplorerEntries());
           return screenComponent;
         }});
     };
