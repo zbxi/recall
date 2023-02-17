@@ -4,13 +4,8 @@
 #include <span>
 #include <sqlite3.h>
 //
-#include "configuration.hpp"
-#include "controller.hpp"
-#include "note.hpp"
-#include "notekeeper.hpp"
-#include "presenter.hpp"
+#include "locator.hpp"
 #include "tui.hpp"
-
 
 namespace zbxi::recall
 {
@@ -27,10 +22,9 @@ namespace zbxi::recall
     void printTags(Note& note);
 
   private:
-    std::unique_ptr<Tui> m_interface{};
-    std::unique_ptr<Controller> m_controller{};
-    std::unique_ptr<Presenter> m_presenter{};
-    std::unique_ptr<Notekeeper> m_notekeeper{};
-    std::unique_ptr<Configuration> m_configuration{};
+    Locator m_locator;
+    Presenter m_presenter;
+    Controller m_controller;
+    std::unique_ptr<Tui> m_interface;
   };
 }

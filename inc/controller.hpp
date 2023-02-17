@@ -1,23 +1,20 @@
 #pragma once
 
-#include "notekeeper.hpp"
-#include "presenter.hpp"
-
 #include <filesystem>
 
 namespace zbxi::recall
 {
   // Used by the view to control the Model
+  class Locator;
   class Controller
   {
   public:
-    Controller(Notekeeper* notekeeper, Presenter* presenter);
+    Controller(Locator& locator);
     ~Controller();
 
-    bool openVault(std::filesystem::path path);
+    bool openVault(std::filesystem::path path, std::string* errorMessage);
 
   private:
-    Notekeeper* m_notekeeper; // avoiding std::shared_ptr
-    Presenter* m_presenter;
+    Locator& m_locator;
   };
 }

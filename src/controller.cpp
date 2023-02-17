@@ -1,10 +1,11 @@
 #include "controller.hpp"
 
+#include "locator.hpp"
+
 namespace zbxi::recall
 {
-  Controller::Controller(Notekeeper* notekeeper, Presenter* presenter) :
-    m_notekeeper{notekeeper},
-    m_presenter{presenter}
+  Controller::Controller(Locator& locator) :
+    m_locator{locator}
   {
   }
 
@@ -12,10 +13,16 @@ namespace zbxi::recall
   {
   }
 
-  bool Controller::openVault(std::filesystem::path path)
+  bool Controller::openVault(std::filesystem::path path, std::string* errorMessage)
   {
+    auto setMessage = [&](std::string message) {
+      if(errorMessage) {
+        *errorMessage = message;
+      }
+    };
+
     if(!std::filesystem::exists(path)) {
-      m_presenter->errorMessage() = "File does not exist";
+      setMessage("File does not exist");
       return false;
     }
 
@@ -30,22 +37,19 @@ namespace zbxi::recall
       }
 
       if(valid) {
-        // Notekeeper
-        m_notekeeper->openVault(path);
+        // Open the notekeeper
+        m_locator.setNotekeeper(std::make_unique<Notekeeper>(path));
 
         // Presenter
-        m_presenter->errorMessage() = {};
-        m_presenter->inputStrings().front() = {};
-        m_presenter->setCurrentPath("");
-        auto& history = m_presenter->vaultHistory();
+        auto& history = m_locator.configuration().vaultHistory();
         if(std::find(history.begin(), history.end(), path) == history.end()) {
           history.push_back(path);
         }
 
-        return true;
+        return valid;
       }
 
-      m_presenter->errorMessage() = "There aren't any .md files there";
+      setMessage("There aren't any .md files there");
     };
 
     return valid;

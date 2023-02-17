@@ -2,28 +2,17 @@
 
 namespace zbxi::recall
 {
-  Notekeeper::Notekeeper()
+  Notekeeper::Notekeeper(std::filesystem::path vaultPath)
   {
+    connectToDatabase(std::filesystem::path{vaultPath}.append("recaller.db"));
+    parseNotes();
+    m_vaultPath = vaultPath;
   }
 
   Notekeeper::~Notekeeper()
   {
     saveToDatabase();
     sqlite3_close_v2(m_connection);
-  }
-
-  void Notekeeper::openVault(std::filesystem::path vaultPath)
-  {
-    if(connected()) {
-      if(m_vaultPath == vaultPath) {
-        return;
-      } else {
-        sqlite3_close_v2(m_connection);
-      }
-    }
-    connectToDatabase(std::filesystem::path{vaultPath}.append("recaller.db"));
-    parseNotes();
-    m_vaultPath = vaultPath;
   }
 
   void Notekeeper::connectToDatabase(std::filesystem::path databasePath)

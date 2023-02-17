@@ -25,13 +25,10 @@ namespace zbxi::recall
   class Notekeeper
   {
   public:
-    Notekeeper();
+    Notekeeper(std::filesystem::path vaultPath);
     ~Notekeeper();
 
-    void openVault(std::filesystem::path vaultPath);
-
-    bool connected() { return m_connection != nullptr; }
-    auto vaultPath() -> std::string const& { return m_vaultPath; }
+    auto vaultPath() const -> std::string const& { return m_vaultPath; }
     auto notes() -> std::span<Note> { return m_notes; }
 
   private:

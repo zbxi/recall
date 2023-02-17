@@ -12,24 +12,26 @@ namespace zbxi::recall
   class Configuration
   {
   public:
-    Configuration();
+    Configuration(std::filesystem::path configPath);
     ~Configuration();
 
-    bool connected() { return m_connection != nullptr; }
     auto vaultHistory() -> std::vector<std::string>&;
+    auto vaultHistory() const -> std::vector<std::string> const&;
 
   private:
+    void openDatabase(std::filesystem::path configPath);
     void initDatabase();
     void getVaultHistory();
-    void connectToDatabase(std::string databaseName);
     void saveToDatabase();
 
     void checkSqlite(int result, int expected = SQLITE_OK);
 
     sqlite3* m_connection{};
-    std::vector<std::string> m_vaultHistory{};
-    std::string m_tableName{"VaultHistory"};
-
     bool m_queried{};
+
+    std::vector<std::string> m_vaultHistory{};
+
+    std::string m_tableName{"VaultHistory"};
+    std::string m_databaseName{"recall.db"};
   };
 }

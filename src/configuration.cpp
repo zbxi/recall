@@ -2,9 +2,9 @@
 
 namespace zbxi::recall
 {
-  Configuration::Configuration()
+  Configuration::Configuration(std::filesystem::path configPath)
   {
-    connectToDatabase("recall.db");
+    openDatabase(configPath);
   }
 
   Configuration::~Configuration()
@@ -22,21 +22,21 @@ namespace zbxi::recall
     return m_vaultHistory;
   }
 
-  void Configuration::connectToDatabase(std::string databaseName)
+  auto Configuration::vaultHistory() const -> std::vector<std::string> const&
   {
-    if(connected()) {
-      return;
-    }
+    return const_cast<Configuration*>(this)->vaultHistory();
+  }
 
+  void Configuration::openDatabase(std::filesystem::path configPath)
+  {
     // Create config directory
-    std::filesystem::path configPath = std::string{std::getenv("HOME")} + "/.recall";
     if(!std::filesystem::exists(configPath)) {
       if(!std::filesystem::create_directory(configPath)) {
         throw std::runtime_error("Failed to create configuration directory");
       }
     }
 
-    std::filesystem::path databasePath = configPath.string() + '/' + databaseName;
+    std::filesystem::path databasePath = configPath.string() + '/' + m_databaseName;
     bool novel{};
     if(!std::filesystem::exists(databasePath)) {
       novel = true;

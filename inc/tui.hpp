@@ -1,38 +1,41 @@
 #pragma once
 
-#include "ftxui/component/captured_mouse.hpp"    // ftxui
-#include "ftxui/component/component.hpp"         // Menu
-#include "ftxui/component/component_options.hpp" // MenuOption
-#include "ftxui/component/loop.hpp"
-#include "ftxui/component/screen_interactive.hpp" // ScreenInteractive
-#include "ftxui/dom/elements.hpp"
-
-#include <stack>
-#include <unordered_map>
-//
 #include "controller.hpp"
 #include "presenter.hpp"
+#include "screenComponent.hpp"
+
+#include <stack>
+#include <type_traits>
+#include <unordered_map>
 
 namespace zbxi::recall
 {
+
   class Tui
   {
   public:
-    Tui(Controller* controller, Presenter* presenter);
+    Tui(Presenter& presenter, Controller& controller);
     ~Tui();
 
     void run();
 
   private:
-    void buildScreens();
-    void open(ftxui::Component screenComponent);
+    void add(std::size_t id, std::unique_ptr<ScreenComponent> screenComponent);
+    void open(ftxui::Component component);
+    void open(std::size_t id);
     void close();
 
-    std::unordered_map<std::string, std::function<ftxui::Component()>> m_screenComponents{};
+    template<typename T>
+    auto typeHash()
+    {
+      return typeid(T).hash_code();
+    }
+
+    std::unordered_map<std::size_t, std::unique_ptr<ScreenComponent>> m_screenComponents{};
     // std::unordered_map<std::string, ftxui::Component> m_components{};
 
-    Controller* m_controller{nullptr};
-    Presenter* m_presenter{nullptr};
+    Presenter& m_presenter;
+    Controller& m_controller;
     std::stack<ftxui::Closure> m_exitClosures;
   };
 }
