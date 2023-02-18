@@ -2,7 +2,8 @@
 
 #include "controller.hpp"
 #include "presenter.hpp"
-#include "screenComponent.hpp"
+#include "screen/screenComponent.hpp"
+#include "screen/vaultSelector.hpp"
 
 #include <stack>
 #include <type_traits>

@@ -13,10 +13,10 @@ namespace zbxi::recall
     Folder(std::filesystem::path);
     ~Folder();
 
-    auto files() -> std::span<std::filesystem::path> { return m_files; }
-    auto folders() -> std::span<Folder> { return m_folders; }
-    auto path() -> std::filesystem::path { return m_path; }
-    bool pathOf(std::string fileName, std::filesystem::path*);
+    auto files() const -> std::vector<std::filesystem::path> { return m_files; }
+    auto folders() const -> std::vector<Folder> { return m_folders; }
+    auto path() const -> std::filesystem::path { return m_path; }
+    bool pathOf(std::string fileName, std::filesystem::path*) const;
 
   private:
     std::vector<Folder> m_folders{};

@@ -24,12 +24,22 @@ namespace zbxi::recall
   {
   }
 
-  bool Folder::pathOf(std::string fileName, std::filesystem::path* path)
+  // For files -> no stem: file.png X || file OK
+  // For folder -> bar at end: myfolder X || myfolder/ OK
+  bool Folder::pathOf(std::string fileName, std::filesystem::path* path) const
   {
+    assert(!fileName.empty() && "This function does not accept empty file names");
     assert(path && "This function does not accept nullptr");
     for(auto& e : m_files) {
       if(e.stem() == fileName) {
         *path = e;
+        return true;
+      }
+    }
+
+    for(auto& e : m_folders) {
+      if(e.path().stem() == fileName.substr(0, fileName.size() - 1)) {
+        *path = e.path();
         return true;
       }
     }

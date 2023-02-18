@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <functional>
 #include <span>
+#include <sstream>
 #include <string_view>
 #include <vector>
 //
@@ -36,12 +37,12 @@ namespace zbxi::recall
     Note(std::string const& text, time_point modificationDate, TagObserver tagObserver, Label label = Label::none, std::vector<std::string_view> tags = {});
     Note(std::string&& text, time_point modificationDate, TagObserver tagObserver, Label label = Label::none, std::vector<std::string_view> tags = {});
 
-    auto path() -> std::string_view { return m_filePath; }
-    auto text() -> std::string_view { return m_text; }
-    auto label() -> Label& { return m_label; }
-    auto tags() -> std::span<std::string_view> { return m_tags; }
-    auto headers() -> std::span<Header> { return m_headers; }
-    auto modificationDate() -> time_point { return m_modificationDate; }
+    auto path() const -> std::string_view { return m_filePath; }
+    auto text() const -> std::string_view { return m_text; }
+    auto label() -> Label const& { return m_label; }
+    auto tags() const -> std::vector<std::string_view> const& { return m_tags; }
+    auto headers() const -> std::vector<Header> const& { return m_headers; }
+    auto modificationDate() const -> time_point { return m_modificationDate; }
 
     void newTag(std::string_view tag);
 

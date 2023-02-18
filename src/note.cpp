@@ -30,6 +30,10 @@ namespace zbxi::recall
 
   void Note::newTag(std::string_view tag)
   {
+    if(!m_newTagObserver) {
+      throw std::runtime_error("method call on null object");
+    }
+
     std::span<std::string> updatedTags{};
     if(m_newTagObserver(tag, &updatedTags)) {
       m_tags.clear();
@@ -65,6 +69,12 @@ namespace zbxi::recall
     static_cast<void>(print);
     static_cast<void>(printChildrenCount);
 
+    std::istringstream stream{std::string(text)};
+    std::string line{};
+
+    while(std::getline(stream, line)) {
+    }
+
     while(textIndex < text.size()) {
       if(checkHeader(text, textIndex, &lineLevel)) {
         if(lineLevel > headerLevel) {
@@ -75,7 +85,7 @@ namespace zbxi::recall
             .level = lineLevel,
             .text{text.data() + firstIndex, (textIndex - firstIndex)},
           });
-          // print();
+          print();
           headersChildren.push_back(0);
           firstIndex = textIndex;
           nextLine(text, &textIndex);
@@ -91,8 +101,8 @@ namespace zbxi::recall
       .text{text.data() + firstIndex, (textIndex - firstIndex)},
     });
 
-    // print();
-    // printChildrenCount();
+    print();
+    printChildrenCount();
 
     for(std::size_t i{}; i < headersChildren.size(); ++i) {
       if(!headersChildren[i])
@@ -105,7 +115,7 @@ namespace zbxi::recall
 
   void Note::nextLine(std::string_view buffer, std::size_t* index)
   {
-    while(buffer[*index] != '\n') {
+    while(*index < buffer.size() && buffer[*index] != '\n') {
       ++(*index);
     }
     ++(*index);

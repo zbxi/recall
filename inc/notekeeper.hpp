@@ -28,8 +28,10 @@ namespace zbxi::recall
     Notekeeper(std::filesystem::path vaultPath);
     ~Notekeeper();
 
-    auto vaultPath() const -> std::string const& { return m_vaultPath; }
+    auto vaultFolder() const -> Folder const& { return *m_vaultFolder; }
     auto notes() -> std::span<Note> { return m_notes; }
+
+    auto noteByPath(std::filesystem::path path) const -> Note const&;
 
   private:
     void connectToDatabase(std::filesystem::path databasePath);
@@ -47,8 +49,8 @@ namespace zbxi::recall
     sqlite3* m_connection{nullptr};
     std::vector<Note> m_notes{};
     std::vector<std::string> m_tags{};
-    std::string m_vaultPath{};
     std::string m_tableName{"Notes"};
     std::unique_ptr<Folder> m_vaultFolder{};
+    Note m_nullNote;
   };
 }

@@ -2,11 +2,12 @@
 
 namespace zbxi::recall
 {
-  Notekeeper::Notekeeper(std::filesystem::path vaultPath)
+  Notekeeper::Notekeeper(std::filesystem::path vaultPath) :
+    m_vaultFolder{std::make_unique<Folder>(vaultPath)},
+    m_nullNote{{}, {}, {}}
   {
     connectToDatabase(std::filesystem::path{vaultPath}.append("recaller.db"));
     parseNotes();
-    m_vaultPath = vaultPath;
   }
 
   Notekeeper::~Notekeeper()
@@ -46,26 +47,7 @@ namespace zbxi::recall
 
   void Notekeeper::parseNotes()
   {
-    return;
-    //  _
-    // / \
-    //  |
-    //  |
-    //  |
-    //  |
-    //  |
-    //  |
-    //  |
-    //  |
-    //  |
-    //  |
-    //  |
-    //  |
-    //  |
-    //  |
-    //  |
-
-    for(auto& e : std::filesystem::recursive_directory_iterator(m_vaultPath)) {
+    for(auto& e : std::filesystem::recursive_directory_iterator(m_vaultFolder->path())) {
       if(!e.is_regular_file()) {
         continue;
       }
@@ -103,6 +85,16 @@ namespace zbxi::recall
       systemTime,
       std::bind(&Notekeeper::newTag, this, std::placeholders::_1, std::placeholders::_2),
     });
+  }
+
+  auto Notekeeper::noteByPath(std::filesystem::path path) const -> Note const&
+  {
+    for(auto const& e : m_notes) {
+      if(e.path() == path) {
+        return e;
+      }
+    }
+    return m_nullNote;
   }
 
   bool Notekeeper::newTag(std::string_view tag, std::span<std::string>* updatedTags)
