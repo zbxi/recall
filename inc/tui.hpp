@@ -11,7 +11,6 @@
 
 namespace zbxi::recall
 {
-
   class Tui
   {
   public:

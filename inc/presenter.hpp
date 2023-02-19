@@ -22,8 +22,6 @@ namespace zbxi::recall
     auto configuration() const -> Configuration const&;
 
   private:
-    void queryFolderFiles(std::filesystem::path folderPath);
-
     Locator& m_locator;
   };
 }

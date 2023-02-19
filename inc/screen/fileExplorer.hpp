@@ -2,6 +2,7 @@
 
 #include "screen/screenComponent.hpp"
 
+#include <cstdlib>
 #include <sstream>
 
 namespace zbxi::recall::component
@@ -17,6 +18,8 @@ namespace zbxi::recall::component
     void queryFiles();
     void updatePreview();
     auto previewElement(std::string const& text) -> ftxui::Element;
+    auto currentNote() -> Note const&;
+    auto currentPath() -> std::filesystem::path;
 
     ftxui::Component m_previewComponent{};
 

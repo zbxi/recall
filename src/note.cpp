@@ -2,23 +2,37 @@
 
 namespace zbxi::recall
 {
-  Note::Note(std::string const& text, time_point modificationDate, TagObserver tagObserver, Label label, std::vector<std::string_view> tags) :
+  Note::Note(std::string const& text,
+    std::filesystem::path filePath,
+    time_point modificationDate,
+    TagObserver tagObserver,
+    Label label,
+    std::vector<std::string_view> tags) :
     m_text{text},
+    m_filePath{filePath},
     m_modificationDate{modificationDate},
     m_label{label},
     m_tags{tags},
     m_newTagObserver{tagObserver}
   {
+    assert(!m_filePath.empty());
     init();
   }
 
-  Note::Note(std::string&& text, time_point modificationDate, TagObserver tagObserver, Label label, std::vector<std::string_view> tags) :
+  Note::Note(std::string&& text,
+    std::filesystem::path filePath,
+    time_point modificationDate,
+    TagObserver tagObserver,
+    Label label,
+    std::vector<std::string_view> tags) :
     m_text{std::move(text)},
+    m_filePath{filePath},
     m_modificationDate{modificationDate},
     m_label{label},
     m_tags{tags},
     m_newTagObserver{tagObserver}
   {
+    assert(!m_filePath.empty());
     init();
   }
 
@@ -43,12 +57,9 @@ namespace zbxi::recall
     }
   }
 
-  void Note::parseText(std::string_view text, std::vector<Header>* headers, std::int_fast8_t headerLevel)
+  void Note::parseText(std::string_view text, std::vector<Header>* headers, std::int_fast8_t minHeaderLevel)
   {
-    std::size_t textIndex{};
-    std::size_t firstIndex{};
-    std::int_fast8_t lineLevel{};
-    std::vector<std::size_t> headersChildren{0};
+    assert(headers && "nullptr");
 
     auto print = [&]() {
       std::cout << "+++++++++++++" << std::endl;
@@ -56,110 +67,87 @@ namespace zbxi::recall
       std::cout << "+++++++++++++" << std::endl;
     };
 
-    auto printChildrenCount = [&]() {
-      std::cout << "<= ";
-
-      for(auto& e : headersChildren) {
-        std::cout << e << " ";
-      }
-
-      std::cout << ">=" << std::endl;
-    };
-
     static_cast<void>(print);
-    static_cast<void>(printChildrenCount);
 
-    std::istringstream stream{std::string(text)};
+    std::istringstream countStream{std::string(text)};
     std::string line{};
+    std::int_fast8_t lineLevel{};
+    auto& max = std::numeric_limits<std::int_fast8_t>::max;
+    std::int_fast8_t headerLevel = max();
 
-    while(std::getline(stream, line)) {
+    while(std::getline(countStream, line)) {
+      skipWhitespaces(&line);
+      if(checkHeader(line, &lineLevel)) {
+        if(lineLevel >= minHeaderLevel) {
+          headerLevel = std::min(headerLevel, lineLevel);
+        }
+      }
     }
 
-    while(textIndex < text.size()) {
-      if(checkHeader(text, textIndex, &lineLevel)) {
-        if(lineLevel > headerLevel) {
-          ++headersChildren.back();
-        }
+    if(headerLevel == max()) {
+      return;
+    }
+
+    std::istringstream stream{std::string(text)};
+    std::size_t firstIndex{};
+    std::int64_t endIndex{-1};
+
+    while(std::getline(stream, line)) {
+      skipWhitespaces(&line);
+      if(checkHeader(line, &lineLevel)) {
         if(lineLevel == headerLevel) {
           headers->push_back({
             .level = lineLevel,
-            .text{text.data() + firstIndex, (textIndex - firstIndex)},
+            .text{text.data() + firstIndex, ((endIndex + 1) - firstIndex)},
           });
-          print();
-          headersChildren.push_back(0);
-          firstIndex = textIndex;
-          nextLine(text, &textIndex);
-          continue;
+          // print();
+          // headerInfos.push_back({});
+          firstIndex = endIndex + 1;
         }
       }
-
-      nextLine(text, &textIndex);
+      endIndex += line.length() + 1;
     }
 
     headers->push_back({
       .level = lineLevel,
-      .text{text.data() + firstIndex, (textIndex - firstIndex)},
+      .text{text.data() + firstIndex, ((endIndex + 1) - firstIndex)},
     });
 
-    print();
-    printChildrenCount();
+    // print();
+    // printChildrenCount();
 
-    for(std::size_t i{}; i < headersChildren.size(); ++i) {
-      if(!headersChildren[i])
-        continue;
-
-      auto& header = (*headers)[i];
-      parseText(header.text, &(header.children), lineLevel + 1);
+    // std::cout << "\n\n";
+    for(auto& childHeader : (*headers)) {
+      parseText(childHeader.text, &childHeader.children, headerLevel + 1);
     }
   }
 
-  void Note::nextLine(std::string_view buffer, std::size_t* index)
+  void Note::skipWhitespaces(std::string* line)
   {
-    while(*index < buffer.size() && buffer[*index] != '\n') {
-      ++(*index);
+    std::size_t i{};
+    while(i < line->size()) {
+      if((*line)[i] != ' ') {
+        break;
+      }
+      ++i;
     }
-    ++(*index);
+
+    (*line) = line->substr(i, line->length() - i);
   }
 
-  void Note::skipWhitespaces(std::string const& buffer, std::size_t* index)
+  bool Note::checkHeader(std::string_view line, std::int_fast8_t* level)
   {
-    while(std::isspace(buffer[*index])) {
-      ++(*index);
-    }
-  }
-
-  bool Note::checkHeader(std::string_view buffer, std::size_t index, std::int_fast8_t* level)
-  {
-    if(buffer[index] != '#') {
+    if(line.front() != '#') {
       return false;
     }
 
     *level = 0;
-    while(buffer[index] == '#') {
+    std::size_t i{};
+    while(line.at(i) == '#') {
       ++(*level);
-      ++index;
+      ++i;
     }
 
     return true;
-  }
-
-  void Note::appendLine(std::string_view buffer, std::size_t* index, std::string* str)
-  {
-    std::size_t endIndex{*index};
-
-    // get count till end of the line
-    while(endIndex < buffer.size() && buffer[endIndex] != '\n') {
-      // std::cout << buffer[endIndex];
-      // std::cout.flush();
-      ++endIndex;
-    }
-    ++endIndex; // include '\n'
-    // std::cout << std::endl;
-
-    std::size_t count = (endIndex - *index);
-    str->append(&buffer[*index], count);
-
-    // skip to next line
-    (*index) += count;
   }
 }

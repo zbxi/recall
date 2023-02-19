@@ -3,8 +3,7 @@
 namespace zbxi::recall
 {
   Notekeeper::Notekeeper(std::filesystem::path vaultPath) :
-    m_vaultFolder{std::make_unique<Folder>(vaultPath)},
-    m_nullNote{{}, {}, {}}
+    m_vaultFolder{std::make_unique<Folder>(vaultPath)}
   {
     connectToDatabase(std::filesystem::path{vaultPath}.append("recaller.db"));
     parseNotes();
@@ -82,6 +81,7 @@ namespace zbxi::recall
 
     m_notes.push_back(Note{
       std::move(buffer),
+      path,
       systemTime,
       std::bind(&Notekeeper::newTag, this, std::placeholders::_1, std::placeholders::_2),
     });
@@ -94,7 +94,7 @@ namespace zbxi::recall
         return e;
       }
     }
-    return m_nullNote;
+    throw std::runtime_error("Failed to find note by path");
   }
 
   bool Notekeeper::newTag(std::string_view tag, std::span<std::string>* updatedTags)

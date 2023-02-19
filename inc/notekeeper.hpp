@@ -51,6 +51,5 @@ namespace zbxi::recall
     std::vector<std::string> m_tags{};
     std::string m_tableName{"Notes"};
     std::unique_ptr<Folder> m_vaultFolder{};
-    Note m_nullNote;
   };
 }

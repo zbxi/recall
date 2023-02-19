@@ -1,7 +1,9 @@
 #pragma once
 
+#include <cassert>
 #include <chrono>
 #include <cstdint>
+#include <filesystem>
 #include <functional>
 #include <span>
 #include <sstream>
@@ -34,8 +36,19 @@ namespace zbxi::recall
       card = 3,
     };
 
-    Note(std::string const& text, time_point modificationDate, TagObserver tagObserver, Label label = Label::none, std::vector<std::string_view> tags = {});
-    Note(std::string&& text, time_point modificationDate, TagObserver tagObserver, Label label = Label::none, std::vector<std::string_view> tags = {});
+    Note(std::string const& text,
+      std::filesystem::path filePath,
+      time_point modificationDate,
+      TagObserver tagObserver,
+      Label label = Label::none,
+      std::vector<std::string_view> tags = {});
+
+    Note(std::string&& text,
+      std::filesystem::path filePath,
+      time_point modificationDate,
+      TagObserver tagObserver,
+      Label label = Label::none,
+      std::vector<std::string_view> tags = {});
 
     auto path() const -> std::string_view { return m_filePath; }
     auto text() const -> std::string_view { return m_text; }
@@ -48,12 +61,10 @@ namespace zbxi::recall
 
   private:
     void init();
-    void parseText(std::string_view text, std::vector<Header>* headers, std::int_fast8_t lineLevel);
+    void parseText(std::string_view text, std::vector<Header>* headers, std::int_fast8_t minHeaderLevel);
 
-    void nextLine(std::string_view buffer, std::size_t* index);
-    void skipWhitespaces(std::string const& buffer, std::size_t* index);
-    bool checkHeader(std::string_view buffer, std::size_t index, std::int_fast8_t* level);
-    void appendLine(std::string_view buffer, std::size_t* index, std::string* str);
+    void skipWhitespaces(std::string* line);
+    bool checkHeader(std::string_view line, std::int_fast8_t* level);
 
   private:
     std::string m_text{};

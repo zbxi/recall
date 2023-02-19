@@ -17,18 +17,22 @@ namespace zbxi::recall::component
 
     MenuOption menuOption{
       .on_change = std::bind(&FileExplorer::updatePreview, this),
-      .on_enter = {},
+      .on_enter = [this] {
+        auto path = currentPath();
+        if(!std::filesystem::is_regular_file(path)) {
+          return;
+        }
+        std::string vaultName = m_presenter.notekeeper().vaultFolder().path().stem();
+        std::string noteName = path.stem();
+        std::string link = "obsidian://open?vault=" + vaultName + "&file=" + noteName;
+        std::string command = "xdg-open '" + link + "' 2>/dev/null 1>&2";
+        std::system(command.c_str());
+      },
     };
     Component menu = Menu(&m_menuEntries, &m_menuEntry, menuOption) | frame;
 
     m_previewComponent = Renderer([this] {
-      namespace fs = std::filesystem;
-      fs::path notePath{};
-      if(!m_folder.pathOf(m_menuEntries.at(m_menuEntry), &notePath)) {
-        throw std::runtime_error("Failed to identify note path");
-      }
-
-      Note const& note = m_presenter.notekeeper().noteByPath(notePath);
+      auto const& note = currentNote();
       return previewElement(std::string{note.text()});
     });
 
@@ -40,6 +44,25 @@ namespace zbxi::recall::component
     });
 
     m_component = window | borderRounded | center | CatchEvent([this](ftxui::Event event) -> bool { return basicQuitHandler(event); });
+  }
+
+  auto FileExplorer::currentNote() -> Note const&
+  {
+    std::filesystem::path notePath{};
+    if(!m_folder.pathOf(m_menuEntries.at(m_menuEntry), &notePath)) {
+      throw std::runtime_error("Failed to identify note path");
+    }
+
+    return m_presenter.notekeeper().noteByPath(notePath);
+  }
+
+  auto FileExplorer::currentPath() -> std::filesystem::path
+  {
+    std::filesystem::path path;
+    if(!m_folder.pathOf(m_menuEntries.at(m_menuEntry), &path)) {
+      throw std::runtime_error("Failed to identify entry path");
+    }
+    return path;
   }
 
   void FileExplorer::updatePreview()
@@ -65,7 +88,7 @@ namespace zbxi::recall::component
       paragraphs.push_back(hflow(paragraph(line)));
     };
 
-    return vbox(std::move(paragraphs)) | frame;
+    return vbox(std::move(paragraphs)) | frame | size(WIDTH, EQUAL, 50);
   }
 
   void FileExplorer::queryFiles()
