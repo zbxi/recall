@@ -17,7 +17,7 @@ namespace zbxi::recall
     using namespace ftxui;
     ScreenComponent::Callbacks callbacks{
       .open = [this](std::size_t id) { open(id); },
-      .close = std::bind(&Tui::close, this),
+      .minimize = std::bind(&Tui::minimize, this),
       .add = std::bind(&Tui::add, this, std::placeholders::_1, std::placeholders::_2),
     };
 
@@ -41,11 +41,13 @@ namespace zbxi::recall
 
   void Tui::add(std::size_t id, std::unique_ptr<ScreenComponent> screenComponent)
   {
-    assert(!m_screenComponents.contains(id) && "non-unique insertion");
+    if(m_screenComponents.contains(id)) {
+      m_screenComponents.erase(id);
+    }
     m_screenComponents.insert({id, std::move(screenComponent)});
   }
 
-  void Tui::close()
+  void Tui::minimize()
   {
     auto exit = m_exitClosures.top();
     m_exitClosures.pop();

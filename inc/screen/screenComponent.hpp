@@ -26,7 +26,7 @@ namespace zbxi::recall
     struct Callbacks
     {
       std::function<void(std::size_t id)> open{};
-      std::function<void()> close{};
+      std::function<void()> minimize{};
       std::function<void(std::size_t id, std::unique_ptr<ScreenComponent>)> add{};
     };
 
@@ -37,6 +37,8 @@ namespace zbxi::recall
   protected:
     virtual void buildComponent() = 0;
     bool basicQuitHandler(ftxui::Event event);
+    auto previewElement(std::string const& text) -> ftxui::Element;
+    auto entryLabel(std::filesystem::path entryIndex) -> ftxui::Element;
 
     template<typename T, typename... Args>
     requires(std::is_base_of<ScreenComponent, T>())

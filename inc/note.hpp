@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <functional>
+#include <set>
 #include <span>
 #include <sstream>
 #include <string_view>
@@ -23,41 +24,43 @@ namespace zbxi::recall
 
   class Note
   {
-    using TagObserver = std::function<bool(std::string_view, std::span<std::string>*)>;
-    using time_point = std::chrono::system_clock::time_point;
+    using TagObserver = std::function<void(std::string_view, std::vector<std::string_view>*)>;
+    using time_point = std::int64_t;
 
   public:
     enum class Label : std::int8_t
     {
-      ignored = -1,
       none = 0,
-      map_of_content = 1,
-      content = 2,
-      card = 3,
+      ignored,
+      map_of_content,
+      content,
+      card,
     };
 
     Note(std::string const& text,
       std::filesystem::path filePath,
       time_point modificationDate,
-      TagObserver tagObserver,
       Label label = Label::none,
-      std::vector<std::string_view> tags = {});
+      std::vector<std::string> tags = {});
 
     Note(std::string&& text,
       std::filesystem::path filePath,
       time_point modificationDate,
-      TagObserver tagObserver,
       Label label = Label::none,
-      std::vector<std::string_view> tags = {});
+      std::vector<std::string> tags = {});
 
-    auto path() const -> std::string_view { return m_filePath; }
-    auto text() const -> std::string_view { return m_text; }
-    auto label() -> Label const& { return m_label; }
-    auto tags() const -> std::vector<std::string_view> const& { return m_tags; }
+    auto path() const -> std::string const& { return m_filePath; }
+    auto text() const -> std::string const& { return m_text; }
+    auto label() const -> Label const& { return m_label; }
+    auto tags() const -> std::set<std::string> const& { return m_tags; }
     auto headers() const -> std::vector<Header> const& { return m_headers; }
     auto modificationDate() const -> time_point { return m_modificationDate; }
 
-    void newTag(std::string_view tag);
+    static auto getLabel(std::string name) -> Note::Label;
+    static auto getLabelText(Note::Label label) -> std::string;
+
+    void addTag(std::string tag);
+    void setLabel(Label label);
 
   private:
     void init();
@@ -74,9 +77,6 @@ namespace zbxi::recall
     std::string m_filePath{};
     time_point m_modificationDate{};
     Label m_label{};
-    std::vector<std::string_view> m_tags{};
-
-    // Observers
-    TagObserver m_newTagObserver;
+    std::set<std::string> m_tags{};
   };
 }

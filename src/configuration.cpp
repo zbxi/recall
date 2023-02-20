@@ -82,13 +82,14 @@ namespace zbxi::recall
 
   void Configuration::saveToDatabase()
   {
-    std::string statement = "INSERT OR IGNORE INTO " + m_tableName + " VALUES(?)";
+    std::string statement = "INSERT OR IGNORE INTO " + m_tableName + " (path) VALUES(?)";
     sqlite3_stmt* stmt{};
     checkSqlite(sqlite3_prepare_v2(m_connection, statement.c_str(), statement.length(), &stmt, nullptr));
 
     for(auto& e : m_vaultHistory) {
       sqlite3_bind_text(stmt, 1, e.c_str(), e.length(), SQLITE_STATIC);
       checkSqlite(sqlite3_step(stmt), SQLITE_DONE);
+      checkSqlite(sqlite3_reset(stmt));
     }
 
     checkSqlite(sqlite3_finalize(stmt));

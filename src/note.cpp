@@ -5,15 +5,13 @@ namespace zbxi::recall
   Note::Note(std::string const& text,
     std::filesystem::path filePath,
     time_point modificationDate,
-    TagObserver tagObserver,
     Label label,
-    std::vector<std::string_view> tags) :
+    std::vector<std::string> tags) :
     m_text{text},
     m_filePath{filePath},
     m_modificationDate{modificationDate},
     m_label{label},
-    m_tags{tags},
-    m_newTagObserver{tagObserver}
+    m_tags{tags.begin(), tags.end()}
   {
     assert(!m_filePath.empty());
     init();
@@ -22,15 +20,13 @@ namespace zbxi::recall
   Note::Note(std::string&& text,
     std::filesystem::path filePath,
     time_point modificationDate,
-    TagObserver tagObserver,
     Label label,
-    std::vector<std::string_view> tags) :
+    std::vector<std::string> tags) :
     m_text{std::move(text)},
     m_filePath{filePath},
     m_modificationDate{modificationDate},
     m_label{label},
-    m_tags{tags},
-    m_newTagObserver{tagObserver}
+    m_tags{tags.begin(), tags.end()}
   {
     assert(!m_filePath.empty());
     init();
@@ -42,19 +38,14 @@ namespace zbxi::recall
     parseText(m_text, &m_headers, lvl);
   }
 
-  void Note::newTag(std::string_view tag)
+  void Note::addTag(std::string tag)
   {
-    if(!m_newTagObserver) {
-      throw std::runtime_error("method call on null object");
-    }
+    m_tags.insert(tag);
+  }
 
-    std::span<std::string> updatedTags{};
-    if(m_newTagObserver(tag, &updatedTags)) {
-      m_tags.clear();
-      for(auto& e : updatedTags) {
-        m_tags.push_back(e);
-      }
-    }
+  void Note::setLabel(Label label)
+  {
+    m_label = label;
   }
 
   void Note::parseText(std::string_view text, std::vector<Header>* headers, std::int_fast8_t minHeaderLevel)
@@ -149,5 +140,41 @@ namespace zbxi::recall
     }
 
     return true;
+  }
+
+  auto Note::getLabel(std::string name) -> Note::Label
+  {
+    using enum Note::Label;
+    if(name == "None") {
+      return none;
+    } else if(name == "Ignored") {
+      return ignored;
+    } else if(name == "MOC") {
+      return map_of_content;
+    } else if(name == "Content") {
+      return content;
+    } else if(name == "Card") {
+      return card;
+    } else {
+      throw std::runtime_error("Failed to identify label");
+    }
+  }
+
+  auto Note::getLabelText(Note::Label label) -> std::string
+  {
+    using enum Note::Label;
+    if(label == none) {
+      return "None";
+    } else if(label == ignored) {
+      return "Ignored";
+    } else if(label == map_of_content) {
+      return "MOC";
+    } else if(label == content) {
+      return "Content";
+    } else if(label == card) {
+      return "Card";
+    } else {
+      throw std::runtime_error("Failed to identify label");
+    }
   }
 }

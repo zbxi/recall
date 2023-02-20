@@ -43,7 +43,7 @@ namespace zbxi::recall::component
         separator(),
         menu->Render(),
       });
-    });
+    }) | CatchEvent([this](ftxui::Event event) -> bool { return basicQuitHandler(event); });
 
     Component right = Renderer(input, [input]() {
       return vbox(
@@ -77,6 +77,6 @@ namespace zbxi::recall::component
         }));
       });
 
-    m_component = window | center | CatchEvent([this](ftxui::Event event) -> bool { return basicQuitHandler(event); });
+    m_component = window | center;
   }
 }

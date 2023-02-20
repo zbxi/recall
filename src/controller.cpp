@@ -13,6 +13,18 @@ namespace zbxi::recall
   {
   }
 
+  void Controller::addNoteTag(std::filesystem::path path, std::string tag)
+  {
+    auto& note = m_locator.notekeeper().noteByPath(path);
+    note.addTag(tag);
+  }
+
+  void Controller::setNoteLabel(std::filesystem::path path, Note::Label label)
+  {
+    auto& note = m_locator.notekeeper().noteByPath(path);
+    note.setLabel(label);
+  }
+
   bool Controller::openVault(std::filesystem::path path, std::string* errorMessage)
   {
     auto setMessage = [&](std::string message) {

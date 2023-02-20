@@ -34,15 +34,15 @@ do
   package_end()
 end
 
-add_requires("ftxui", "sqlite")
+add_requires("ftxui", "sqlite3")
 
 target("program")
 do
   set_default(true)
   set_kind("binary")
   add_files("src/**.cpp")
-  add_packages("sqlite", "ftxui")
+  add_packages("sqlite3", "ftxui")
   -- add_linkdirs("dep/ftxui-4.0.0-Linux/lib")
   -- add_links(":libftxui-component.a", ":libftxui-dom.a", ":libftxui-screen.a")
-  add_includedirs("inc"--[[ , "dep/ftxui-4.0.0-Linux/include" ]])
+  add_includedirs("inc" --[[ , "dep/ftxui-4.0.0-Linux/include" ]])
 end

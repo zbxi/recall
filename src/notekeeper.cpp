@@ -6,7 +6,9 @@ namespace zbxi::recall
     m_vaultFolder{std::make_unique<Folder>(vaultPath)}
   {
     connectToDatabase(std::filesystem::path{vaultPath}.append("recaller.db"));
-    parseNotes();
+    queryDatabase();
+    updateQuery();
+    readVault();
   }
 
   Notekeeper::~Notekeeper()
@@ -34,7 +36,7 @@ namespace zbxi::recall
   {
     std::string statement{
       "CREATE TABLE " + m_tableName + "(" +
-        "path VARCHAR(255) PRIMARY KEY,"
+        "path VARCHAR(255) UNIQUE,"
         "modificationDate INTEGER,"
         "label VARCHAR(24),"
         "tags VARCHAR"
@@ -44,25 +46,94 @@ namespace zbxi::recall
     checkSqlite(sqlite3_exec(m_connection, statement.c_str(), nullptr, nullptr, nullptr));
   }
 
-  void Notekeeper::parseNotes()
+  auto Notekeeper::modificationDate(std::filesystem::path path) -> std::int_fast64_t
   {
+    std::filesystem::file_time_type fileTime = std::filesystem::last_write_time(path);
+    std::chrono::system_clock::time_point systemTime = std::chrono::file_clock::to_sys(fileTime);
+    return std::chrono::duration_cast<std::chrono::milliseconds>(systemTime.time_since_epoch()).count();
+  }
+
+  bool Notekeeper::openNote(std::filesystem::path path)
+  {
+    if(!std::filesystem::is_regular_file(path)) {
+      return false;
+    }
+
+    std::string vaultName = this->vaultName();
+    std::string noteName = path.stem();
+    std::string link = "obsidian://open?vault=" + vaultName + "&file=" + noteName;
+    std::string command = "xdg-open '" + link + "' 2>/dev/null 1>&2";
+    std::system(command.c_str());
+    return true;
+  }
+
+  void Notekeeper::queryDatabase()
+  {
+    sqlite3_stmt* stmt{};
+    std::string statement = "SELECT * FROM " + m_tableName;
+    checkSqlite(sqlite3_prepare_v2(m_connection, statement.c_str(), statement.length(), &stmt, nullptr));
+    DataRow row{};
+    while(sqlite3_step(stmt) == SQLITE_ROW) {
+      row = {
+        .path = reinterpret_cast<char const*>(sqlite3_column_text(stmt, 0)),
+        .modificationDate = sqlite3_column_int64(stmt, 1),
+        .label = reinterpret_cast<char const*>(sqlite3_column_text(stmt, 2)),
+        .tags = parseTags(reinterpret_cast<char const*>(sqlite3_column_text(stmt, 2))),
+      };
+      m_databaseTable.insert({row.path, std::move(row)});
+      // Note::Label label = Note::getLabel(labelText);
+    }
+    sqlite3_finalize(stmt);
+  }
+
+  void Notekeeper::updateQuery()
+  {
+    // Delete deprecated entries
+    for(auto it = m_databaseTable.begin(); it != m_databaseTable.end(); ++it) {
+      auto& [path, row] = *it;
+      if(!std::filesystem::exists(row.path) ||
+         row.modificationDate != modificationDate(row.path)) {
+        m_databaseTable.erase(it);
+      }
+    }
+
+    // Query filesystem vault
     for(auto& e : std::filesystem::recursive_directory_iterator(m_vaultFolder->path())) {
-      if(!e.is_regular_file()) {
+      if(!e.is_regular_file() ||
+         e.path().extension() != ".md" ||
+         m_databaseTable.contains(e.path())) {
         continue;
       }
 
-      if(e.path().extension() == ".md") {
-        readNote(e.path());
-      }
+      queryNote(e);
     }
   }
 
-  void Notekeeper::readNote(std::filesystem::path path)
+  void Notekeeper::queryNote(std::filesystem::path path)
   {
-    std::fstream file{path, file.binary | file.in | file.ate};
+    DataRow row{
+      .path = path,
+      .modificationDate = modificationDate(path),
+      .label = Note::getLabelText(Note::Label::none),
+      .tags = {},
+    };
+
+    m_databaseTable.insert({path, row});
+  }
+
+  void Notekeeper::readVault()
+  {
+    for(auto& [path, row] : m_databaseTable) {
+      readNote(row);
+    }
+  }
+
+  void Notekeeper::readNote(DataRow const& row)
+  {
+    std::fstream file{row.path, file.binary | file.in | file.ate};
 
     if(!file.is_open()) {
-      throw std::runtime_error("Failed to open file: \"" + path.string() + "\"");
+      throw std::runtime_error("Failed to open file: \"" + row.path + "\"");
     }
 
     //// File size
@@ -74,22 +145,47 @@ namespace zbxi::recall
     buffer.resize(fileSize);
     file.read(&buffer[0], fileSize);
 
-    //// Unix Time in milliseconds
-    std::filesystem::file_time_type fileTime = std::filesystem::last_write_time(path);
-    std::chrono::system_clock::time_point systemTime = std::chrono::file_clock::to_sys(fileTime);
-    // std::int64_t milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(systemTime.time_since_epoch()).count();
-
     m_notes.push_back(Note{
       std::move(buffer),
-      path,
-      systemTime,
-      std::bind(&Notekeeper::newTag, this, std::placeholders::_1, std::placeholders::_2),
+      row.path,
+      row.modificationDate,
+      Note::getLabel(row.label),                    // label Note::Label
+      std::move(m_databaseTable.at(row.path).tags), // tags  std::vector<string_view>
     });
   }
 
-  auto Notekeeper::noteByPath(std::filesystem::path path) const -> Note const&
+  auto Notekeeper::parseTags(std::string tags) -> std::vector<std::string>
   {
-    for(auto const& e : m_notes) {
+    std::vector<std::string> result{};
+
+    for(std::size_t i{}; i < tags.length(); ++i) {
+      result.push_back("");
+      while(i < tags.length() && tags.at(i) != '|') {
+        result.back().push_back(tags.at(i));
+        ++i;
+      }
+    };
+
+    return result;
+  }
+
+  auto Notekeeper::compressTags(std::vector<std::string> const& tags) -> std::string
+  {
+    std::string result{};
+    for(auto& e : tags) {
+      for(auto& c : e) {
+        if(c == '|') { throw std::runtime_error("Invalid tag"); }
+      }
+
+      if(!result.empty()) { result.push_back('|'); }
+      result.append(e);
+    };
+    return result;
+  }
+
+  auto Notekeeper::noteByPath(std::filesystem::path path) -> Note&
+  {
+    for(auto& e : m_notes) {
       if(e.path() == path) {
         return e;
       }
@@ -97,29 +193,35 @@ namespace zbxi::recall
     throw std::runtime_error("Failed to find note by path");
   }
 
-  bool Notekeeper::newTag(std::string_view tag, std::span<std::string>* updatedTags)
+  auto Notekeeper::noteByPath(std::filesystem::path path) const -> Note const&
   {
-    bool novel{true};
-    std::size_t index{};
-    while(index < m_tags.size()) {
-      if(tag == m_tags[index]) {
-        novel = false;
-        break;
-      }
-      ++index;
-    }
-
-    if(novel) {
-      m_tags.push_back(std::string(tag));
-      *updatedTags = m_tags;
-      return true;
-    }
-
-    return false;
+    return const_cast<Notekeeper*>(this)->noteByPath(path);
   }
 
   void Notekeeper::saveToDatabase()
   {
+    for(auto& e : m_notes) {
+      auto& row = m_databaseTable.at(e.path());
+      row.label = Note::getLabelText(e.label());
+      row.tags = {e.tags().begin(), e.tags().end()};
+    }
+
+    std::string statement = "INSERT OR REPLACE INTO " + m_tableName + "(path, modificationDate, label, tags) VALUES (?, ?, ?, ?)";
+    sqlite3_stmt* stmt{};
+    checkSqlite(sqlite3_prepare_v2(m_connection, statement.c_str(), statement.length(), &stmt, nullptr));
+
+    for(auto& [path, row] : m_databaseTable) {
+      std::string tags = compressTags(row.tags);
+      sqlite3_bind_text(stmt, 1, row.path.c_str(), row.path.length(), SQLITE_STATIC);
+      sqlite3_bind_int64(stmt, 2, row.modificationDate);
+      sqlite3_bind_text(stmt, 3, row.label.c_str(), row.label.length(), SQLITE_STATIC);
+      sqlite3_bind_text(stmt, 4, tags.c_str(), tags.length(), SQLITE_STATIC);
+
+      checkSqlite(sqlite3_step(stmt), SQLITE_DONE);
+      checkSqlite(sqlite3_reset(stmt));
+    }
+
+    checkSqlite(sqlite3_finalize(stmt));
   }
 
   void Notekeeper::checkSqlite(int result, int expected)

@@ -1,5 +1,7 @@
 #include "screen/fileExplorer.hpp"
 
+#include "tracker.hpp"
+
 namespace zbxi::recall::component
 {
   FileExplorer::FileExplorer(Presenter& presenter, Controller& controller, Callbacks callbacks, std::filesystem::path path) :
@@ -7,6 +9,7 @@ namespace zbxi::recall::component
     m_folder{path}
   {
     queryFiles();
+    queryLabels();
     updatePreview();
     buildComponent();
   }
@@ -15,30 +18,47 @@ namespace zbxi::recall::component
   {
     using namespace ftxui;
 
-    MenuOption menuOption{
-      .on_change = std::bind(&FileExplorer::updatePreview, this),
-      .on_enter = [this] {
-        auto path = currentPath();
-        if(!std::filesystem::is_regular_file(path)) {
-          return;
+    MenuEntryOption entryOption{
+      .transform = [](EntryState const& state) {
+        Element textElement = text(" " + state.label);
+        if(state.focused) {
+          textElement = textElement | inverted;
         }
-        std::string vaultName = m_presenter.notekeeper().vaultFolder().path().stem();
-        std::string noteName = path.stem();
-        std::string link = "obsidian://open?vault=" + vaultName + "&file=" + noteName;
-        std::string command = "xdg-open '" + link + "' 2>/dev/null 1>&2";
-        std::system(command.c_str());
+        if(state.active) {
+          textElement = textElement | bold;
+        }
+        return textElement;
       },
     };
-    Component menu = Menu(&m_menuEntries, &m_menuEntry, menuOption) | frame;
+
+    m_menuOption = {
+      // .elements_prefix = [] { return text("#prefix"); },
+      // .elements_postfix = [] { return text("#postfix"); },
+      .entries = entryOption,
+      .on_change = std::bind(&FileExplorer::updatePreview, this),
+      .on_enter = [this] {
+        if(!std::filesystem::is_regular_file(currentPath())) {
+          return;
+        }
+        spawnChild<Tracker>(EntryInfo{
+          .name = m_fileNames.at(m_menuEntry),
+          .path = getPath(m_menuEntry),
+          .onUpdateLabel = std::bind(&FileExplorer::queryLabels, this)});
+      },
+    };
+
+    Component menu = Menu(&m_fileNames, &m_menuEntry, &m_menuOption);
+    Component menuComponent = Renderer(menu, [this, menu] {
+      return hbox({vbox(m_entryLabels), menu->Render()}) | vscroll_indicator | frame;
+    }) | CatchEvent(std::bind(&FileExplorer::navigation, this, std::placeholders::_1));
 
     m_previewComponent = Renderer([this] {
-      auto const& note = currentNote();
-      return previewElement(std::string{note.text()});
+      return previewElement(currentNote().text());
     });
 
-    auto may = Maybe([this] { return m_shouldPreview; });
+    auto may = Maybe([this] { return m_canPreview && m_shouldPreview; });
     auto window = Container::Horizontal({
-      menu,
+      menuComponent,
       Renderer([] { return separator(); }) | may,
       m_previewComponent | may,
     });
@@ -46,68 +66,23 @@ namespace zbxi::recall::component
     m_component = window | borderRounded | center | CatchEvent([this](ftxui::Event event) -> bool { return basicQuitHandler(event); });
   }
 
-  auto FileExplorer::currentNote() -> Note const&
-  {
-    std::filesystem::path notePath{};
-    if(!m_folder.pathOf(m_menuEntries.at(m_menuEntry), &notePath)) {
-      throw std::runtime_error("Failed to identify note path");
-    }
-
-    return m_presenter.notekeeper().noteByPath(notePath);
-  }
-
-  auto FileExplorer::currentPath() -> std::filesystem::path
-  {
-    std::filesystem::path path;
-    if(!m_folder.pathOf(m_menuEntries.at(m_menuEntry), &path)) {
-      throw std::runtime_error("Failed to identify entry path");
-    }
-    return path;
-  }
-
-  void FileExplorer::updatePreview()
-  {
-    using namespace ftxui;
-    namespace fs = std::filesystem;
-    fs::path path;
-    m_folder.pathOf(m_menuEntries.at(m_menuEntry), &path);
-    if(fs::is_regular_file(path)) {
-      m_shouldPreview = true;
-    } else {
-      m_shouldPreview = false;
-    }
-  }
-
-  auto FileExplorer::previewElement(std::string const& text) -> ftxui::Element
-  {
-    using namespace ftxui;
-    Elements paragraphs{};
-    std::istringstream stream{text};
-    std::string line;
-    while(std::getline(stream, line)) {
-      paragraphs.push_back(hflow(paragraph(line)));
-    };
-
-    return vbox(std::move(paragraphs)) | frame | size(WIDTH, EQUAL, 50);
-  }
-
   void FileExplorer::queryFiles()
   {
     namespace fs = std::filesystem;
-    m_menuEntries.clear();
+    m_fileNames.clear();
 
     // Folders
     for(auto& e : m_folder.folders()) {
       auto path = e.path();
       if(path.string().front() != '.') {
-        m_menuEntries.push_back(path);
+        m_fileNames.push_back(path);
       }
     }
 
     // Files
     for(auto& e : m_folder.files()) {
       if(fs::is_regular_file(e) && e.extension() == ".md") {
-        m_menuEntries.push_back(e);
+        m_fileNames.push_back(e);
       }
     }
 
@@ -126,8 +101,69 @@ namespace zbxi::recall::component
       return path;
     };
 
-    for(auto& e : m_menuEntries) {
+    // ftxui::MenuEntryOption entryOption{};
+    for(auto& e : m_fileNames) {
       e = fileName(e);
     }
+  }
+
+  void FileExplorer::queryLabels()
+  {
+    using namespace ftxui;
+    m_entryLabels.clear();
+    for(std::size_t entryIndex{}; entryIndex < m_fileNames.size(); ++entryIndex) {
+      m_entryLabels.push_back(entryLabel(getPath(entryIndex)));
+    }
+  }
+
+  void FileExplorer::updatePreview()
+  {
+    using namespace ftxui;
+    namespace fs = std::filesystem;
+    fs::path path;
+    m_folder.pathOf(m_fileNames.at(m_menuEntry), &path);
+    if(fs::is_regular_file(path)) {
+      m_canPreview = true;
+    } else {
+      m_canPreview = false;
+    }
+  }
+
+  auto FileExplorer::getPath(std::size_t entryIndex) -> std::filesystem::path
+  {
+    std::filesystem::path path;
+    if(!m_folder.pathOf(m_fileNames.at(entryIndex), &path)) {
+      throw std::runtime_error("Failed to identify entry path");
+    }
+    return path;
+  }
+
+  bool FileExplorer::navigation(ftxui::Event event)
+  {
+    using namespace ftxui;
+    if(event == Event::Character('G')) {
+      m_menuEntry = m_fileNames.size() - 1;
+      m_menuOption.focused_entry = m_menuEntry;
+      updatePreview();
+      return true;
+    }
+    if(event == Event::Character('g')) {
+      if(m_lastEvent == Event::Character('g')) {
+        m_menuEntry = 0;
+        m_menuOption.focused_entry = 0;
+        m_lastEvent = {};
+        updatePreview();
+        return true;
+      } else {
+        m_lastEvent = Event::Character('g');
+      }
+    }
+    if(event == Event::Character('o')) {
+      return m_presenter.notekeeper().openNote(currentPath());
+    }
+    if(event == Event::Character('p')) {
+      m_shouldPreview = !m_shouldPreview;
+    }
+    return false;
   }
 }
