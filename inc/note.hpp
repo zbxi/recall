@@ -38,18 +38,14 @@ namespace zbxi::recall
     };
 
     Note(std::string const& text,
-      std::filesystem::path filePath,
-      time_point modificationDate,
-      Label label = Label::none,
-      std::vector<std::string> tags = {});
-
-    Note(std::string&& text,
+      std::string name,
       std::filesystem::path filePath,
       time_point modificationDate,
       Label label = Label::none,
       std::vector<std::string> tags = {});
 
     auto path() const -> std::string const& { return m_filePath; }
+    auto name() const -> std::string const& { return m_name; }
     auto text() const -> std::string const& { return m_text; }
     auto label() const -> Label const& { return m_label; }
     auto tags() const -> std::set<std::string> const& { return m_tags; }
@@ -74,6 +70,7 @@ namespace zbxi::recall
     std::vector<Header> m_headers{};
 
     // Info
+    std::string m_name{};
     std::string m_filePath{};
     time_point m_modificationDate{};
     Label m_label{};

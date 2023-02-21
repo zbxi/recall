@@ -3,26 +3,13 @@
 namespace zbxi::recall
 {
   Note::Note(std::string const& text,
+    std::string name,
     std::filesystem::path filePath,
     time_point modificationDate,
     Label label,
     std::vector<std::string> tags) :
     m_text{text},
-    m_filePath{filePath},
-    m_modificationDate{modificationDate},
-    m_label{label},
-    m_tags{tags.begin(), tags.end()}
-  {
-    assert(!m_filePath.empty());
-    init();
-  }
-
-  Note::Note(std::string&& text,
-    std::filesystem::path filePath,
-    time_point modificationDate,
-    Label label,
-    std::vector<std::string> tags) :
-    m_text{std::move(text)},
+    m_name{name},
     m_filePath{filePath},
     m_modificationDate{modificationDate},
     m_label{label},

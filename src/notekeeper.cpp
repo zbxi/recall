@@ -53,14 +53,14 @@ namespace zbxi::recall
     return std::chrono::duration_cast<std::chrono::milliseconds>(systemTime.time_since_epoch()).count();
   }
 
-  bool Notekeeper::openNote(std::filesystem::path path)
+  bool Notekeeper::openNote(std::filesystem::path relativePath)
   {
-    if(!std::filesystem::is_regular_file(path)) {
+    if(!std::filesystem::is_regular_file(relativePath)) {
       return false;
     }
 
     std::string vaultName = this->vaultName();
-    std::string noteName = path.stem();
+    std::string noteName = relativePath.stem();
     std::string link = "obsidian://open?vault=" + vaultName + "&file=" + noteName;
     std::string command = "xdg-open '" + link + "' 2>/dev/null 1>&2";
     std::system(command.c_str());
@@ -75,13 +75,14 @@ namespace zbxi::recall
     DataRow row{};
     while(sqlite3_step(stmt) == SQLITE_ROW) {
       row = {
-        .path = reinterpret_cast<char const*>(sqlite3_column_text(stmt, 0)),
+        .name = reinterpret_cast<char const*>(sqlite3_column_text(stmt, 0)),
         .modificationDate = sqlite3_column_int64(stmt, 1),
         .label = reinterpret_cast<char const*>(sqlite3_column_text(stmt, 2)),
         .tags = parseTags(reinterpret_cast<char const*>(sqlite3_column_text(stmt, 2))),
       };
-      m_databaseTable.insert({row.path, std::move(row)});
-      // Note::Label label = Note::getLabel(labelText);
+      std::filesystem::path path{};
+      assert(m_vaultFolder->fullPathOf(row.name, &path));
+      m_databaseTable.insert({path, std::move(row)});
     }
     sqlite3_finalize(stmt);
   }
@@ -91,49 +92,54 @@ namespace zbxi::recall
     // Delete deprecated entries
     for(auto it = m_databaseTable.begin(); it != m_databaseTable.end(); ++it) {
       auto& [path, row] = *it;
-      if(!std::filesystem::exists(row.path) ||
-         row.modificationDate != modificationDate(row.path)) {
+
+      if(!std::filesystem::exists(path) ||
+         row.modificationDate != modificationDate(path)) {
         m_databaseTable.erase(it);
       }
     }
 
     // Query filesystem vault
-    for(auto& e : std::filesystem::recursive_directory_iterator(m_vaultFolder->path())) {
-      if(!e.is_regular_file() ||
-         e.path().extension() != ".md" ||
-         m_databaseTable.contains(e.path())) {
+    for(auto& path : std::filesystem::recursive_directory_iterator(m_vaultFolder->path())) {
+      if(!path.is_regular_file() ||
+         path.path().extension() != ".md" ||
+         m_databaseTable.contains(path.path())) {
         continue;
       }
 
-      queryNote(e);
+      std::filesystem::path name{};
+      if(!m_vaultFolder->relativePathOf(path, &name)) {
+        throw std::runtime_error("Failed to convert relative path");
+      }
+      queryNote(name, path);
     }
   }
 
-  void Notekeeper::queryNote(std::filesystem::path path)
+  void Notekeeper::queryNote(std::string name, std::filesystem::path path)
   {
     DataRow row{
-      .path = path,
+      .name = name,
       .modificationDate = modificationDate(path),
       .label = Note::getLabelText(Note::Label::none),
       .tags = {},
     };
 
-    m_databaseTable.insert({path, row});
+    m_databaseTable.insert({path, std::move(row)});
   }
 
   void Notekeeper::readVault()
   {
     for(auto& [path, row] : m_databaseTable) {
-      readNote(row);
+      readNote(path, row);
     }
   }
 
-  void Notekeeper::readNote(DataRow const& row)
+  void Notekeeper::readNote(std::filesystem::path path, DataRow const& row)
   {
-    std::fstream file{row.path, file.binary | file.in | file.ate};
+    std::fstream file{path, file.binary | file.in | file.ate};
 
     if(!file.is_open()) {
-      throw std::runtime_error("Failed to open file: \"" + row.path + "\"");
+      throw std::runtime_error("Failed to open note: \"" + row.name + "\"");
     }
 
     //// File size
@@ -147,10 +153,11 @@ namespace zbxi::recall
 
     m_notes.push_back(Note{
       std::move(buffer),
-      row.path,
+      row.name,
+      path,
       row.modificationDate,
-      Note::getLabel(row.label),                    // label Note::Label
-      std::move(m_databaseTable.at(row.path).tags), // tags  std::vector<string_view>
+      Note::getLabel(row.label),                // label Note::Label
+      std::move(m_databaseTable.at(path).tags), // tags  std::vector<string>
     });
   }
 
@@ -212,7 +219,7 @@ namespace zbxi::recall
 
     for(auto& [path, row] : m_databaseTable) {
       std::string tags = compressTags(row.tags);
-      sqlite3_bind_text(stmt, 1, row.path.c_str(), row.path.length(), SQLITE_STATIC);
+      sqlite3_bind_text(stmt, 1, row.name.c_str(), row.name.length(), SQLITE_STATIC);
       sqlite3_bind_int64(stmt, 2, row.modificationDate);
       sqlite3_bind_text(stmt, 3, row.label.c_str(), row.label.length(), SQLITE_STATIC);
       sqlite3_bind_text(stmt, 4, tags.c_str(), tags.length(), SQLITE_STATIC);

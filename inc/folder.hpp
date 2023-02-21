@@ -17,6 +17,8 @@ namespace zbxi::recall
     auto folders() const -> std::vector<Folder> { return m_folders; }
     auto path() const -> std::filesystem::path { return m_path; }
     bool pathOf(std::string fileName, std::filesystem::path*) const;
+    bool relativePathOf(std::filesystem::path const&, std::filesystem::path*);
+    bool fullPathOf(std::filesystem::path const&, std::filesystem::path*);
 
   private:
     std::vector<Folder> m_folders{};

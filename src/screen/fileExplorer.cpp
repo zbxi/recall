@@ -40,9 +40,10 @@ namespace zbxi::recall::component
         if(!std::filesystem::is_regular_file(currentPath())) {
           return;
         }
+        auto const& note = currentNote();
         spawnChild<Tracker>(EntryInfo{
-          .name = m_fileNames.at(m_menuEntry),
-          .path = getPath(m_menuEntry),
+          .name = note.name(),
+          .path = note.path(),
           .onUpdateLabel = std::bind(&FileExplorer::queryLabels, this)});
       },
     };
@@ -159,7 +160,8 @@ namespace zbxi::recall::component
       }
     }
     if(event == Event::Character('o')) {
-      return m_presenter.notekeeper().openNote(currentPath());
+      m_controller.openNote(currentNote().path());
+      return true;
     }
     if(event == Event::Character('p')) {
       m_shouldPreview = !m_shouldPreview;

@@ -46,4 +46,39 @@ namespace zbxi::recall
 
     return false;
   }
+
+  bool Folder::relativePathOf(std::filesystem::path const& fullPath, std::filesystem::path* inout)
+  {
+    assert(!fullPath.empty() && "This function does not accept empty paths");
+    assert(inout && "This function does not accept nullptr");
+
+    std::string path = fullPath.string();
+    std::string const& currentPath = m_path;
+
+    for(std::size_t i{}; i < currentPath.length(); ++i) {
+      if(path.at(i) != currentPath.at(i)) {
+        return false;
+      }
+    }
+
+    path.erase(0, currentPath.length() + 1);
+    *inout = path;
+
+    return true;
+  }
+
+  bool Folder::fullPathOf(std::filesystem::path const& relativePath, std::filesystem::path* inout)
+  {
+    assert(!relativePath.empty() && "This function does not accept empty paths");
+    assert(inout && "This function does not accept nullptr");
+
+    std::filesystem::path path = m_path;
+    path.append(relativePath.string());
+    if(!std::filesystem::exists(path)) {
+      return false;
+    }
+
+    *inout = path;
+    return true;
+  }
 }

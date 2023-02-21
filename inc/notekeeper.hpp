@@ -28,7 +28,7 @@ namespace zbxi::recall
   {
     struct DataRow
     {
-      std::string path{};
+      std::string name{};
       std::int_fast64_t modificationDate{};
       std::string label{};
       std::vector<std::string> tags{};
@@ -46,7 +46,7 @@ namespace zbxi::recall
     auto noteByPath(std::filesystem::path path) -> Note&;
 
     static auto modificationDate(std::filesystem::path path) -> std::int_fast64_t;
-    bool openNote(std::filesystem::path) const;
+    bool openNote(std::filesystem::path);
 
   private:
     void connectToDatabase(std::filesystem::path databasePath);
@@ -54,8 +54,8 @@ namespace zbxi::recall
     void queryDatabase();
     void updateQuery();
     void readVault();
-    void queryNote(std::filesystem::path path);
-    void readNote(DataRow const& row);
+    void queryNote(std::string name, std::filesystem::path path);
+    void readNote(std::filesystem::path path, DataRow const& row);
     auto parseTags(std::string tags) -> std::vector<std::string>;
     auto compressTags(std::vector<std::string> const& tags) -> std::string;
     void saveToDatabase();

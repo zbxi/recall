@@ -14,9 +14,10 @@ namespace zbxi::recall
     Controller(Locator& locator);
     ~Controller();
 
-    bool openVault(std::filesystem::path path, std::string* errorMessage);
-    void addNoteTag(std::filesystem::path path, std::string tag);
-    void setNoteLabel(std::filesystem::path path, Note::Label tag);
+    bool openVault(std::filesystem::path, std::string*);
+    void openNote(std::filesystem::path);
+    void addNoteTag(std::filesystem::path, std::string);
+    void setNoteLabel(std::filesystem::path, Note::Label);
 
   private:
     Locator& m_locator;
