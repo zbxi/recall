@@ -29,8 +29,9 @@ namespace zbxi::recall
     struct DataRow
     {
       std::string name{};
-      std::int_fast64_t modificationDate{};
       std::string label{};
+      std::chrono::system_clock::time_point modificationDate{};
+      std::chrono::system_clock::time_point recallDate{};
       std::vector<std::string> tags{};
     };
 
@@ -45,8 +46,8 @@ namespace zbxi::recall
     auto noteByPath(std::filesystem::path path) const -> Note const&;
     auto noteByPath(std::filesystem::path path) -> Note&;
 
-    static auto modificationDate(std::filesystem::path path) -> std::int_fast64_t;
-    bool openNote(std::filesystem::path);
+    static auto modificationDate(std::filesystem::path path) -> std::chrono::system_clock::time_point;
+    bool openNote(std::string);
 
   private:
     void connectToDatabase(std::filesystem::path databasePath);

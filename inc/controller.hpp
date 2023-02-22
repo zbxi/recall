@@ -18,6 +18,7 @@ namespace zbxi::recall
     void openNote(std::filesystem::path);
     void addNoteTag(std::filesystem::path, std::string);
     void setNoteLabel(std::filesystem::path, Note::Label);
+    void setNoteRecallDate(std::filesystem::path, std::chrono::system_clock::time_point);
 
   private:
     Locator& m_locator;

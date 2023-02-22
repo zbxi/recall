@@ -1,6 +1,7 @@
 #pragma once
 
-#include "fileExplorer.hpp"
+#include "screen/fileExplorer.hpp"
+#include "screen/recaller.hpp"
 #include "screen/screenComponent.hpp"
 
 namespace zbxi::recall::component

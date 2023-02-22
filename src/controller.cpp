@@ -25,6 +25,12 @@ namespace zbxi::recall
     note.setLabel(label);
   }
 
+  void Controller::setNoteRecallDate(std::filesystem::path path, std::chrono::system_clock::time_point date)
+  {
+    auto& note = m_locator.notekeeper().noteByPath(path);
+    note.setRecallDate(date);
+  }
+
   bool Controller::openVault(std::filesystem::path path, std::string* errorMessage)
   {
     auto setMessage = [&](std::string message) {

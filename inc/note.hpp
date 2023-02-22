@@ -25,7 +25,7 @@ namespace zbxi::recall
   class Note
   {
     using TagObserver = std::function<void(std::string_view, std::vector<std::string_view>*)>;
-    using time_point = std::int64_t;
+    using time_point = std::chrono::system_clock::time_point;
 
   public:
     enum class Label : std::int8_t
@@ -41,6 +41,7 @@ namespace zbxi::recall
       std::string name,
       std::filesystem::path filePath,
       time_point modificationDate,
+      time_point recallDate,
       Label label = Label::none,
       std::vector<std::string> tags = {});
 
@@ -51,15 +52,16 @@ namespace zbxi::recall
     auto tags() const -> std::set<std::string> const& { return m_tags; }
     auto headers() const -> std::vector<Header> const& { return m_headers; }
     auto modificationDate() const -> time_point { return m_modificationDate; }
+    auto recallDate() const -> time_point { return m_recallDate; }
 
     static auto getLabel(std::string name) -> Note::Label;
     static auto getLabelText(Note::Label label) -> std::string;
 
     void addTag(std::string tag);
     void setLabel(Label label);
+    void setRecallDate(std::chrono::system_clock::time_point recallDate);
 
   private:
-    void init();
     void parseText(std::string_view text, std::vector<Header>* headers, std::int_fast8_t minHeaderLevel);
 
     void skipWhitespaces(std::string* line);
@@ -73,6 +75,7 @@ namespace zbxi::recall
     std::string m_name{};
     std::string m_filePath{};
     time_point m_modificationDate{};
+    time_point m_recallDate{};
     Label m_label{};
     std::set<std::string> m_tags{};
   };

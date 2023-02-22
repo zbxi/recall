@@ -19,11 +19,21 @@ namespace zbxi::recall::component
     };
 
     // File Explorer
-    auto path = m_presenter.notekeeper().vaultFolder().path();
-    auto id = typeHash<FileExplorer>();
-    auto ptr = std::make_unique<FileExplorer>(m_presenter, m_controller, m_callbacks, path);
-    m_callbacks.add(id, std::move(ptr));
-    m_entryIds.insert({"File Explorer", id});
+    {
+      auto path = m_presenter.notekeeper().vaultFolder().path();
+      auto id = typeHash<FileExplorer>();
+      auto ptr = std::make_unique<FileExplorer>(m_presenter, m_controller, m_callbacks, path);
+      m_callbacks.add(id, std::move(ptr));
+      m_entryIds.insert({"File Explorer", id});
+    }
+
+    // Recaller
+    {
+      auto id = typeHash<Recaller>();
+      auto ptr = std::make_unique<Recaller>(m_presenter, m_controller, m_callbacks);
+      m_callbacks.add(id, std::move(ptr));
+      m_entryIds.insert({"Recaller", id});
+    }
 
     for(auto& e : menuEntries) {
       m_entries.push_back(e);

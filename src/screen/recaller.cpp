@@ -1,10 +1,12 @@
-#include "recaller.hpp"
+#include "screen/recaller.hpp"
 
 namespace zbxi::recall::component
 {
   Recaller::Recaller(Presenter& presenter, Controller& controller, Callbacks callbacks) :
     ScreenComponent{presenter, controller, callbacks}
   {
+    buildComponent();
+    buildQueue();
   }
 
   bool Recaller::navigation(ftxui::Event event)
@@ -24,9 +26,22 @@ namespace zbxi::recall::component
     }
     if(event == Event::Character('`')) {
       m_callbacks.minimize();
-      return false;
+      return true;
     }
     return false;
+  }
+
+  void Recaller::buildQueue()
+  {
+    using namespace std::chrono;
+    auto const& notes = m_presenter.notekeeper().notes();
+
+    auto now = system_clock::now();
+    for(auto& note : notes) {
+      if(note.recallDate() <= now) {
+        m_queue.push_back(std::ref(note));
+      }
+    }
   }
 
   auto Recaller::interval(Result result, Days currentInterval) -> Days
@@ -60,15 +75,16 @@ namespace zbxi::recall::component
   void Recaller::buildComponent()
   {
     using namespace ftxui;
-    Component window;
-    std::string noteName{};
-    auto box = vbox({
-      text(noteName),
-      separator(),
-      text(" [1]  Again "),
-      text(" [2]  Hard  "),
-      text(" [3]  Good  "),
-      text(" [4]  Easy  "),
+    std::string noteName{"my note name"};
+    auto window = Renderer([noteName] {
+      return vbox({
+        text(noteName),
+        separator(),
+        text(" [1]  Again "),
+        text(" [2]  Hard  "),
+        text(" [3]  Good  "),
+        text(" [4]  Easy  "),
+      });
     });
     m_component = window | borderRounded | center | CatchEvent(std::bind(&Recaller::navigation, this, std::placeholders::_1));
   }

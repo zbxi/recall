@@ -6,23 +6,22 @@ namespace zbxi::recall
     std::string name,
     std::filesystem::path filePath,
     time_point modificationDate,
+    time_point recallDate,
     Label label,
     std::vector<std::string> tags) :
     m_text{text},
     m_name{name},
     m_filePath{filePath},
     m_modificationDate{modificationDate},
+    m_recallDate{recallDate},
     m_label{label},
     m_tags{tags.begin(), tags.end()}
   {
-    assert(!m_filePath.empty());
-    init();
-  }
-
-  void Note::init()
-  {
-    auto constexpr lvl = 1;
-    parseText(m_text, &m_headers, lvl);
+    assert(!name.empty() &&
+           !m_filePath.empty() &&
+           modificationDate.time_since_epoch().count() != 0);
+    // auto constexpr lvl = 1;
+    // parseText(m_text, &m_headers, lvl);
   }
 
   void Note::addTag(std::string tag)
@@ -33,6 +32,11 @@ namespace zbxi::recall
   void Note::setLabel(Label label)
   {
     m_label = label;
+  }
+
+  void Note::setRecallDate(std::chrono::system_clock::time_point date)
+  {
+    m_recallDate = date;
   }
 
   void Note::parseText(std::string_view text, std::vector<Header>* headers, std::int_fast8_t minHeaderLevel)

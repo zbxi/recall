@@ -36,9 +36,10 @@ namespace zbxi::recall
   {
     std::string statement{
       "CREATE TABLE " + m_tableName + "(" +
-        "path VARCHAR(255) UNIQUE,"
-        "modificationDate INTEGER,"
+        "name VARCHAR(255) UNIQUE,"
         "label VARCHAR(24),"
+        "modificationDate INTEGER,"
+        "recallDate INTEGER,"
         "tags VARCHAR"
         ");",
     };
@@ -46,22 +47,24 @@ namespace zbxi::recall
     checkSqlite(sqlite3_exec(m_connection, statement.c_str(), nullptr, nullptr, nullptr));
   }
 
-  auto Notekeeper::modificationDate(std::filesystem::path path) -> std::int_fast64_t
+  auto Notekeeper::modificationDate(std::filesystem::path path) -> std::chrono::system_clock::time_point
   {
     std::filesystem::file_time_type fileTime = std::filesystem::last_write_time(path);
     std::chrono::system_clock::time_point systemTime = std::chrono::file_clock::to_sys(fileTime);
-    return std::chrono::duration_cast<std::chrono::milliseconds>(systemTime.time_since_epoch()).count();
+    // return std::chrono::duration_cast<std::chrono::milliseconds>(systemTime.time_since_epoch()).count();
+    return systemTime;
   }
 
-  bool Notekeeper::openNote(std::filesystem::path relativePath)
+  bool Notekeeper::openNote(std::string name)
   {
-    if(!std::filesystem::is_regular_file(relativePath)) {
+    std::filesystem::path path{};
+    assert(m_vaultFolder->fullPathOf(name, &path));
+    if(!std::filesystem::is_regular_file(path)) {
       return false;
     }
 
     std::string vaultName = this->vaultName();
-    std::string noteName = relativePath.stem();
-    std::string link = "obsidian://open?vault=" + vaultName + "&file=" + noteName;
+    std::string link = "obsidian://open?vault=" + vaultName + "&file=" + name;
     std::string command = "xdg-open '" + link + "' 2>/dev/null 1>&2";
     std::system(command.c_str());
     return true;
@@ -74,11 +77,28 @@ namespace zbxi::recall
     checkSqlite(sqlite3_prepare_v2(m_connection, statement.c_str(), statement.length(), &stmt, nullptr));
     DataRow row{};
     while(sqlite3_step(stmt) == SQLITE_ROW) {
+      namespace ch = std::chrono;
+
+      ch::system_clock::time_point modificationDate{};
+      {
+        auto dur = ch::milliseconds(sqlite3_column_int64(stmt, 2));
+        ch::system_clock::time_point point = ch::time_point<ch::system_clock>(dur);
+        modificationDate = point;
+      }
+
+      ch::system_clock::time_point recallDate{};
+      {
+        auto dur = ch::milliseconds(sqlite3_column_int64(stmt, 3));
+        ch::system_clock::time_point point = ch::time_point<ch::system_clock>(dur);
+        recallDate = point;
+      }
+
       row = {
         .name = reinterpret_cast<char const*>(sqlite3_column_text(stmt, 0)),
-        .modificationDate = sqlite3_column_int64(stmt, 1),
-        .label = reinterpret_cast<char const*>(sqlite3_column_text(stmt, 2)),
-        .tags = parseTags(reinterpret_cast<char const*>(sqlite3_column_text(stmt, 2))),
+        .label = reinterpret_cast<char const*>(sqlite3_column_text(stmt, 1)),
+        .modificationDate = modificationDate,
+        .recallDate = recallDate,
+        .tags = parseTags(reinterpret_cast<char const*>(sqlite3_column_text(stmt, 4))),
       };
       std::filesystem::path path{};
       assert(m_vaultFolder->fullPathOf(row.name, &path));
@@ -99,7 +119,7 @@ namespace zbxi::recall
       }
     }
 
-    // Query filesystem vault
+    // Query filesystem vault for new entries
     for(auto& path : std::filesystem::recursive_directory_iterator(m_vaultFolder->path())) {
       if(!path.is_regular_file() ||
          path.path().extension() != ".md" ||
@@ -119,8 +139,9 @@ namespace zbxi::recall
   {
     DataRow row{
       .name = name,
-      .modificationDate = modificationDate(path),
       .label = Note::getLabelText(Note::Label::none),
+      .modificationDate = modificationDate(path),
+      .recallDate = {},
       .tags = {},
     };
 
@@ -151,11 +172,13 @@ namespace zbxi::recall
     buffer.resize(fileSize);
     file.read(&buffer[0], fileSize);
 
+    using namespace std::chrono;
     m_notes.push_back(Note{
       std::move(buffer),
       row.name,
       path,
-      row.modificationDate,
+      row.modificationDate,                     // modification
+      row.recallDate,                           // recall
       Note::getLabel(row.label),                // label Note::Label
       std::move(m_databaseTable.at(path).tags), // tags  std::vector<string>
     });
@@ -213,16 +236,21 @@ namespace zbxi::recall
       row.tags = {e.tags().begin(), e.tags().end()};
     }
 
-    std::string statement = "INSERT OR REPLACE INTO " + m_tableName + "(path, modificationDate, label, tags) VALUES (?, ?, ?, ?)";
+    std::string statement = "INSERT OR REPLACE INTO " + m_tableName + "(name, label, modificationDate, recallDate, tags) VALUES (?, ?, ?, ?, ?)";
     sqlite3_stmt* stmt{};
     checkSqlite(sqlite3_prepare_v2(m_connection, statement.c_str(), statement.length(), &stmt, nullptr));
 
     for(auto& [path, row] : m_databaseTable) {
+      using namespace std::chrono;
+      std::int64_t
+        modificationDate = time_point_cast<milliseconds>(row.modificationDate).time_since_epoch().count(),
+        recallDate = time_point_cast<milliseconds>(row.recallDate).time_since_epoch().count();
       std::string tags = compressTags(row.tags);
       sqlite3_bind_text(stmt, 1, row.name.c_str(), row.name.length(), SQLITE_STATIC);
-      sqlite3_bind_int64(stmt, 2, row.modificationDate);
-      sqlite3_bind_text(stmt, 3, row.label.c_str(), row.label.length(), SQLITE_STATIC);
-      sqlite3_bind_text(stmt, 4, tags.c_str(), tags.length(), SQLITE_STATIC);
+      sqlite3_bind_text(stmt, 2, row.label.c_str(), row.label.length(), SQLITE_STATIC);
+      sqlite3_bind_int64(stmt, 3, modificationDate);
+      sqlite3_bind_int64(stmt, 4, recallDate);
+      sqlite3_bind_text(stmt, 5, tags.c_str(), tags.length(), SQLITE_STATIC);
 
       checkSqlite(sqlite3_step(stmt), SQLITE_DONE);
       checkSqlite(sqlite3_reset(stmt));
