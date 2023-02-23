@@ -15,7 +15,7 @@ namespace zbxi::recall
     ~Controller();
 
     bool openVault(std::filesystem::path, std::string*);
-    void openNote(std::filesystem::path);
+    void openNote(std::string);
     void addNoteTag(std::filesystem::path, std::string);
     void setNoteLabel(std::filesystem::path, Note::Label);
     void setNoteRecallDate(std::filesystem::path, std::chrono::system_clock::time_point);

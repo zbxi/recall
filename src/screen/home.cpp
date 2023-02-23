@@ -29,8 +29,8 @@ namespace zbxi::recall::component
 
     // Recaller
     {
-      auto id = typeHash<Recaller>();
-      auto ptr = std::make_unique<Recaller>(m_presenter, m_controller, m_callbacks);
+      auto id = typeHash<CategorySelector>();
+      auto ptr = std::make_unique<CategorySelector>(m_presenter, m_controller, m_callbacks);
       m_callbacks.add(id, std::move(ptr));
       m_entryIds.insert({"Recaller", id});
     }

@@ -160,7 +160,7 @@ namespace zbxi::recall::component
       }
     }
     if(event == Event::Character('o')) {
-      m_controller.openNote(currentNote().path());
+      m_controller.openNote(currentNote().name());
       return true;
     }
     if(event == Event::Character('p')) {

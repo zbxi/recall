@@ -1,5 +1,6 @@
 #pragma once
 
+#include "screen/categorySelector.hpp"
 #include "screen/fileExplorer.hpp"
 #include "screen/recaller.hpp"
 #include "screen/screenComponent.hpp"

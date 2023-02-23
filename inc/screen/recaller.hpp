@@ -1,11 +1,13 @@
 #pragma once
 
+#include "categorySelector.hpp"
 #include "screen/screenComponent.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <functional>
+#include <set>
 
 namespace zbxi::recall::component
 {
@@ -21,7 +23,7 @@ namespace zbxi::recall::component
     };
 
   public:
-    Recaller(Presenter& presenter, Controller& controller, Callbacks callbacks);
+    Recaller(Presenter& presenter, Controller& controller, Callbacks callbacks, std::string tag);
     ~Recaller() = default;
 
   private:
@@ -37,5 +39,6 @@ namespace zbxi::recall::component
     double easyBonus{1.3};
 
     std::deque<std::reference_wrapper<Note const>> m_queue{};
+    std::string m_tag{};
   };
 }

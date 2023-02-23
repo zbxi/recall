@@ -47,12 +47,13 @@ namespace zbxi::recall
     checkSqlite(sqlite3_exec(m_connection, statement.c_str(), nullptr, nullptr, nullptr));
   }
 
-  auto Notekeeper::modificationDate(std::filesystem::path path) -> std::chrono::system_clock::time_point
+  auto Notekeeper::modificationDate(std::filesystem::path path) -> std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds>
   {
     std::filesystem::file_time_type fileTime = std::filesystem::last_write_time(path);
     std::chrono::system_clock::time_point systemTime = std::chrono::file_clock::to_sys(fileTime);
     // return std::chrono::duration_cast<std::chrono::milliseconds>(systemTime.time_since_epoch()).count();
-    return systemTime;
+    auto timePoint = std::chrono::time_point_cast<std::chrono::milliseconds>(systemTime);
+    return timePoint;
   }
 
   bool Notekeeper::openNote(std::string name)
@@ -63,8 +64,21 @@ namespace zbxi::recall
       return false;
     }
 
+    std::string escapedName{};
+    for(auto& e : name) {
+      if(std::isspace(e)) {
+        escapedName.append("%20");
+        continue;
+      }
+      if(e == '%') {
+        escapedName.append("%25");
+        continue;
+      }
+      escapedName.push_back(e);
+    }
+
     std::string vaultName = this->vaultName();
-    std::string link = "obsidian://open?vault=" + vaultName + "&file=" + name;
+    std::string link = "obsidian://open?vault=" + vaultName + "&file=" + escapedName;
     std::string command = "xdg-open '" + link + "' 2>/dev/null 1>&2";
     std::system(command.c_str());
     return true;
@@ -79,18 +93,18 @@ namespace zbxi::recall
     while(sqlite3_step(stmt) == SQLITE_ROW) {
       namespace ch = std::chrono;
 
-      ch::system_clock::time_point modificationDate{};
+      time_point modificationDate{};
       {
         auto dur = ch::milliseconds(sqlite3_column_int64(stmt, 2));
         ch::system_clock::time_point point = ch::time_point<ch::system_clock>(dur);
-        modificationDate = point;
+        modificationDate = std::chrono::time_point_cast<std::chrono::milliseconds>(point);
       }
 
-      ch::system_clock::time_point recallDate{};
+      time_point recallDate{};
       {
         auto dur = ch::milliseconds(sqlite3_column_int64(stmt, 3));
         ch::system_clock::time_point point = ch::time_point<ch::system_clock>(dur);
-        recallDate = point;
+        recallDate = std::chrono::time_point_cast<std::chrono::milliseconds>(point);
       }
 
       row = {
@@ -100,6 +114,7 @@ namespace zbxi::recall
         .recallDate = recallDate,
         .tags = parseTags(reinterpret_cast<char const*>(sqlite3_column_text(stmt, 4))),
       };
+
       std::filesystem::path path{};
       assert(m_vaultFolder->fullPathOf(row.name, &path));
       m_databaseTable.insert({path, std::move(row)});
@@ -235,6 +250,7 @@ namespace zbxi::recall
       row.label = Note::getLabelText(e.label());
       row.tags = {e.tags().begin(), e.tags().end()};
     }
+
 
     std::string statement = "INSERT OR REPLACE INTO " + m_tableName + "(name, label, modificationDate, recallDate, tags) VALUES (?, ?, ?, ?, ?)";
     sqlite3_stmt* stmt{};

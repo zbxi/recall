@@ -74,8 +74,8 @@ namespace zbxi::recall
     return valid;
   }
 
-  void Controller::openNote(std::filesystem::path path)
+  void Controller::openNote(std::string name)
   {
-    m_locator.notekeeper().openNote(path);
+    m_locator.notekeeper().openNote(name);
   }
 }

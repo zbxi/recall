@@ -26,12 +26,13 @@ namespace zbxi::recall
   // Manages Vault-specific Data
   class Notekeeper
   {
+    using time_point = std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds>;
     struct DataRow
     {
       std::string name{};
       std::string label{};
-      std::chrono::system_clock::time_point modificationDate{};
-      std::chrono::system_clock::time_point recallDate{};
+      time_point modificationDate{};
+      time_point recallDate{};
       std::vector<std::string> tags{};
     };
 
@@ -46,7 +47,7 @@ namespace zbxi::recall
     auto noteByPath(std::filesystem::path path) const -> Note const&;
     auto noteByPath(std::filesystem::path path) -> Note&;
 
-    static auto modificationDate(std::filesystem::path path) -> std::chrono::system_clock::time_point;
+    static auto modificationDate(std::filesystem::path path) -> std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds>;
     bool openNote(std::string);
 
   private:

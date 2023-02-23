@@ -2,11 +2,12 @@
 
 namespace zbxi::recall::component
 {
-  Recaller::Recaller(Presenter& presenter, Controller& controller, Callbacks callbacks) :
-    ScreenComponent{presenter, controller, callbacks}
+  Recaller::Recaller(Presenter& presenter, Controller& controller, Callbacks callbacks, std::string tag) :
+    ScreenComponent{presenter, controller, callbacks},
+    m_tag{tag}
   {
-    buildComponent();
     buildQueue();
+    buildComponent();
   }
 
   bool Recaller::navigation(ftxui::Event event)
@@ -35,10 +36,10 @@ namespace zbxi::recall::component
   {
     using namespace std::chrono;
     auto const& notes = m_presenter.notekeeper().notes();
-
     auto now = system_clock::now();
     for(auto& note : notes) {
-      if(note.recallDate() <= now) {
+      if(note.tags().contains(m_tag) &&
+         note.recallDate() <= now) {
         m_queue.push_back(std::ref(note));
       }
     }
@@ -76,9 +77,10 @@ namespace zbxi::recall::component
   {
     using namespace ftxui;
     std::string noteName{"my note name"};
-    auto window = Renderer([noteName] {
+    auto window = Renderer([this, noteName] {
       return vbox({
-        text(noteName),
+        text(" [" + m_tag + "] ") | center,
+        text(noteName) | center,
         separator(),
         text(" [1]  Again "),
         text(" [2]  Hard  "),
