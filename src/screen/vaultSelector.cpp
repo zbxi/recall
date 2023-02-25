@@ -66,17 +66,20 @@ namespace zbxi::recall::component
       right,
     });
 
-    Component window = Renderer(selectorComponent,
-      [this, selectorComponent] {
-        auto errorComponent = Renderer([this] { return text(m_errorMessage); });
-        auto shouldShowError = [this]() -> bool { return m_errorMessage.empty(); };
+    auto shouldShowError = [this]() -> bool { return !m_errorMessage.empty(); };
+    auto may = Maybe(shouldShowError);
+    auto errorComponent = Renderer([this] {
+      return text(m_errorMessage);
+    }) | borderRounded | may |
+                          center;
+
+    m_component = Renderer(selectorComponent,
+      [selectorComponent, errorComponent, shouldShowError, may] {
         return center(vbox({
           selectorComponent->Render() | borderRounded | center,
-          filler() | size(HEIGHT, EQUAL, 1 - shouldShowError()),
-          (errorComponent | center | Maybe(shouldShowError))->Render(),
+          filler() | size(HEIGHT, EQUAL, 3 - shouldShowError() * 3),
+          errorComponent->Render(),
         }));
       });
-
-    m_component = window | center;
   }
 }

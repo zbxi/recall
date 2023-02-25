@@ -39,13 +39,14 @@ namespace zbxi::recall
       }
     };
 
+    bool valid{false};
     if(!std::filesystem::exists(path)) {
       setMessage("File does not exist");
-      return false;
+      return valid;
     }
 
-    bool valid{false};
     if(!std::filesystem::is_directory(path)) {
+      setMessage("Path does not represent a directory");
       return valid;
     }
 
@@ -57,19 +58,22 @@ namespace zbxi::recall
       }
     }
 
-    if(valid) {
-      // Open the notekeeper
-      m_locator.setNotekeeper(std::make_unique<Notekeeper>(path));
-
-      // Presenter
-      auto& history = m_locator.configuration().vaultHistory();
-      if(std::find(history.begin(), history.end(), path) == history.end()) {
-        history.push_back(path);
-      }
-
+    if(!valid) {
+      setMessage("Directory does not contain any .md file");
       return valid;
-      setMessage("There aren't any .md files there");
-    };
+    }
+
+    // Open the notekeeper
+    m_locator.setNotekeeper(std::make_unique<Notekeeper>(path));
+
+    // Presenter
+    auto& history = m_locator.configuration().vaultHistory();
+    if(std::find(history.begin(), history.end(), path) == history.end()) {
+      history.push_back(path);
+    }
+
+    return valid;
+    setMessage("There aren't any .md files there");
 
     return valid;
   }
