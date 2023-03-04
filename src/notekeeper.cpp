@@ -40,6 +40,8 @@ namespace zbxi::recall
         "label VARCHAR(24),"
         "modificationDate INTEGER,"
         "recallDate INTEGER,"
+        "intervalDuration INTEGER,"
+        "easeModifier REAL,"
         "tags VARCHAR"
         ");",
     };
@@ -91,28 +93,37 @@ namespace zbxi::recall
     checkSqlite(sqlite3_prepare_v2(m_connection, statement.c_str(), statement.length(), &stmt, nullptr));
     DataRow row{};
     while(sqlite3_step(stmt) == SQLITE_ROW) {
-      namespace ch = std::chrono;
+      namespace chrono = std::chrono;
 
-      time_point modificationDate{};
+      auto& now = chrono::system_clock::now;
+      Timepoint<chrono::milliseconds> modificationDate{};
       {
-        auto dur = ch::milliseconds(sqlite3_column_int64(stmt, 2));
-        ch::system_clock::time_point point = ch::time_point<ch::system_clock>(dur);
-        modificationDate = std::chrono::time_point_cast<std::chrono::milliseconds>(point);
+        auto dur = chrono::milliseconds{sqlite3_column_int64(stmt, 2)};
+        chrono::system_clock::time_point point = chrono::system_clock::time_point(dur);
+        modificationDate = chrono::time_point_cast<chrono::milliseconds>(point);
       }
 
-      time_point recallDate{};
+      Timepoint<chrono::seconds> recallDate{};
       {
-        auto dur = ch::milliseconds(sqlite3_column_int64(stmt, 3));
-        ch::system_clock::time_point point = ch::time_point<ch::system_clock>(dur);
-        recallDate = std::chrono::time_point_cast<std::chrono::milliseconds>(point);
+        auto dur = chrono::seconds(sqlite3_column_int64(stmt, 3));
+        chrono::system_clock::time_point point = chrono::time_point<chrono::system_clock>(dur);
+        recallDate = chrono::time_point_cast<chrono::seconds>(point);
+
+        if(recallDate.time_since_epoch().count() == 0) {
+          recallDate = chrono::time_point_cast<chrono::seconds>(now());
+        }
       }
+
+      Duration intervalDuration = chrono::seconds{sqlite3_column_int64(stmt, 4)};
 
       row = {
         .name = reinterpret_cast<char const*>(sqlite3_column_text(stmt, 0)),
         .label = reinterpret_cast<char const*>(sqlite3_column_text(stmt, 1)),
         .modificationDate = modificationDate,
         .recallDate = recallDate,
-        .tags = parseTags(reinterpret_cast<char const*>(sqlite3_column_text(stmt, 4))),
+        .intervalDuration = intervalDuration,
+        .easeMod = sqlite3_column_double(stmt, 5),
+        .tags = parseTags(reinterpret_cast<char const*>(sqlite3_column_text(stmt, 6))),
       };
 
       std::filesystem::path path{};
@@ -128,9 +139,11 @@ namespace zbxi::recall
     for(auto it = m_databaseTable.begin(); it != m_databaseTable.end(); ++it) {
       auto& [path, row] = *it;
 
-      if(!std::filesystem::exists(path) ||
-         row.modificationDate != modificationDate(path)) {
-        m_databaseTable.erase(it);
+      if(!std::filesystem::exists(path)) {
+        m_databaseTable.erase(path);
+      } else if(row.modificationDate != modificationDate(path)) {
+        m_databaseTable.at(path).label = Note::getLabelText(Note::Label::none);
+        row.modificationDate = modificationDate(path);
       }
     }
 
@@ -157,6 +170,8 @@ namespace zbxi::recall
       .label = Note::getLabelText(Note::Label::none),
       .modificationDate = modificationDate(path),
       .recallDate = {},
+      .intervalDuration = {},
+      .easeMod = Note::maximalEase(),
       .tags = {},
     };
 
@@ -189,12 +204,14 @@ namespace zbxi::recall
 
     using namespace std::chrono;
     m_notes.push_back(Note{
+      path,
       std::move(buffer),
       row.name,
-      path,
+      Note::getLabel(row.label),                // label Note::Label
       row.modificationDate,                     // modification
       row.recallDate,                           // recall
-      Note::getLabel(row.label),                // label Note::Label
+      row.intervalDuration,                     //
+      row.easeMod,                              // ease modifier
       std::move(m_databaseTable.at(path).tags), // tags  std::vector<string>
     });
   }
@@ -247,26 +264,33 @@ namespace zbxi::recall
   {
     for(auto& e : m_notes) {
       auto& row = m_databaseTable.at(e.path());
+      row.name = e.name(),
       row.label = Note::getLabelText(e.label());
+      row.modificationDate = e.modificationDate();
+      row.recallDate = e.recallDate(),
+      row.intervalDuration = e.intervalDuration(),
+      row.easeMod = e.easeModifier();
       row.tags = {e.tags().begin(), e.tags().end()};
-    }
+    };
 
-
-    std::string statement = "INSERT OR REPLACE INTO " + m_tableName + "(name, label, modificationDate, recallDate, tags) VALUES (?, ?, ?, ?, ?)";
+    std::string statement = "INSERT OR REPLACE INTO " + m_tableName + "(name, label, modificationDate, recallDate, intervalDuration, easeModifier, tags) VALUES (?, ?, ?, ?, ?, ?, ?)";
     sqlite3_stmt* stmt{};
     checkSqlite(sqlite3_prepare_v2(m_connection, statement.c_str(), statement.length(), &stmt, nullptr));
 
     for(auto& [path, row] : m_databaseTable) {
       using namespace std::chrono;
-      std::int64_t
-        modificationDate = time_point_cast<milliseconds>(row.modificationDate).time_since_epoch().count(),
-        recallDate = time_point_cast<milliseconds>(row.recallDate).time_since_epoch().count();
+      std::int64_t modificationDate = row.modificationDate.time_since_epoch().count();
+      std::int64_t recallDate = row.recallDate.time_since_epoch().count();
+      std::int64_t intervalDuration = row.intervalDuration.count();
+
       std::string tags = compressTags(row.tags);
       sqlite3_bind_text(stmt, 1, row.name.c_str(), row.name.length(), SQLITE_STATIC);
       sqlite3_bind_text(stmt, 2, row.label.c_str(), row.label.length(), SQLITE_STATIC);
       sqlite3_bind_int64(stmt, 3, modificationDate);
       sqlite3_bind_int64(stmt, 4, recallDate);
-      sqlite3_bind_text(stmt, 5, tags.c_str(), tags.length(), SQLITE_STATIC);
+      sqlite3_bind_int64(stmt, 5, intervalDuration);
+      sqlite3_bind_double(stmt, 6, row.easeMod);
+      sqlite3_bind_text(stmt, 7, tags.c_str(), tags.length(), SQLITE_STATIC);
 
       checkSqlite(sqlite3_step(stmt), SQLITE_DONE);
       checkSqlite(sqlite3_reset(stmt));

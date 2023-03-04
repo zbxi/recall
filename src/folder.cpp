@@ -74,10 +74,6 @@ namespace zbxi::recall
 
     std::filesystem::path path = m_path;
     path.append(relativePath.string());
-    if(!std::filesystem::exists(path)) {
-      return false;
-    }
-
     *inout = path;
     return true;
   }

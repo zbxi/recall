@@ -25,7 +25,10 @@ namespace zbxi::recall
   class Note
   {
     using TagObserver = std::function<void(std::string_view, std::vector<std::string_view>*)>;
-    using time_point = std::chrono::system_clock::time_point;
+
+    template<typename T>
+    using Timepoint = std::chrono::time_point<std::chrono::system_clock, T>;
+    using Duration = std::chrono::seconds;
 
   public:
     enum class Label : std::int8_t
@@ -37,13 +40,16 @@ namespace zbxi::recall
       card,
     };
 
-    Note(std::string const& text,
-      std::string name,
+    Note(
       std::filesystem::path filePath,
-      time_point modificationDate,
-      time_point recallDate,
-      Label label = Label::none,
-      std::vector<std::string> tags = {});
+      std::string const& text,
+      std::string name,
+      Label label,
+      Timepoint<std::chrono::milliseconds> modificationDate,
+      Timepoint<std::chrono::seconds> recalledDate,
+      Duration intervalDuration,
+      double inEaseModifer,
+      std::vector<std::string> tags);
 
     auto path() const -> std::string const& { return m_filePath; }
     auto name() const -> std::string const& { return m_name; }
@@ -51,15 +57,22 @@ namespace zbxi::recall
     auto label() const -> Label const& { return m_label; }
     auto tags() const -> std::set<std::string> const& { return m_tags; }
     auto headers() const -> std::vector<Header> const& { return m_headers; }
-    auto modificationDate() const -> time_point { return m_modificationDate; }
-    auto recallDate() const -> time_point { return m_recallDate; }
+    auto modificationDate() const { return m_modificationDate; }
+    auto recallDate() const { return m_recallDate; }
+
+    auto easeModifier() const -> double { return m_easeModifier; }
+    auto intervalDuration() const { return m_intervalDuration; }
 
     static auto getLabel(std::string name) -> Note::Label;
     static auto getLabelText(Note::Label label) -> std::string;
 
+    static auto minimalEase() -> double { return 1.3; }
+    static auto maximalEase() -> double { return 2.5; }
+
     void addTag(std::string tag);
     void setLabel(Label label);
-    void setRecallDate(std::chrono::system_clock::time_point recallDate);
+    void incrementRecallDate(std::chrono::seconds duration);
+    void setEaseModifier(double value);
 
   private:
     void parseText(std::string_view text, std::vector<Header>* headers, std::int_fast8_t minHeaderLevel);
@@ -68,15 +81,17 @@ namespace zbxi::recall
     bool checkHeader(std::string_view line, std::int_fast8_t* level);
 
   private:
-    std::string m_text{};
-    std::vector<Header> m_headers{};
-
-    // Info
-    std::string m_name{};
     std::string m_filePath{};
-    time_point m_modificationDate{};
-    time_point m_recallDate{};
+    std::string m_text{};
+    std::string m_name{};
     Label m_label{};
+    Timepoint<std::chrono::milliseconds> m_modificationDate{};
+    Timepoint<std::chrono::seconds> m_recallDate{};
+    Duration m_intervalDuration{};
+    double m_easeModifier{};
     std::set<std::string> m_tags{};
+
+    // Deprecated
+    std::vector<Header> m_headers{};
   };
 }

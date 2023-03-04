@@ -12,7 +12,6 @@ namespace zbxi::recall::component
   void CategorySelector::buildComponent()
   {
     using namespace ftxui;
-    m_presenter.notekeeper();
     MenuOption tagMenuOption{
       .on_enter = [this] {
         std::string tag = m_entries.at(m_menuEntry);
@@ -36,6 +35,7 @@ namespace zbxi::recall::component
     using namespace ftxui;
     if(event == Event::Character('`')) {
       m_callbacks.minimize();
+      return true;
     }
     return false;
   }

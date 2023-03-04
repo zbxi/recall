@@ -6,88 +6,177 @@ namespace zbxi::recall::component
     ScreenComponent{presenter, controller, callbacks},
     m_tag{tag}
   {
-    buildQueue();
+    buildQueues();
+    if(queryNote()) {
+      updateIncrement(static_cast<Result>(m_menuEntry));
+    };
     buildComponent();
   }
 
-  bool Recaller::navigation(ftxui::Event event)
-  {
-    using namespace ftxui;
-    if(event == Event::Character('1')) {
-      return true;
-    }
-    if(event == Event::Character('2')) {
-      return true;
-    }
-    if(event == Event::Character('3')) {
-      return true;
-    }
-    if(event == Event::Character('4')) {
-      return true;
-    }
-    if(event == Event::Character('`')) {
-      m_callbacks.minimize();
-      return true;
-    }
-    return false;
-  }
-
-  void Recaller::buildQueue()
+  void Recaller::buildQueues()
   {
     using namespace std::chrono;
+    m_queue.clear();
     auto const& notes = m_presenter.notekeeper().notes();
     auto now = system_clock::now();
     for(auto& note : notes) {
-      if(note.tags().contains(m_tag) &&
-         note.recallDate() <= now) {
-        m_queue.push_back(std::ref(note));
+      if(note.tags().contains(m_tag)) {
+        if(note.recallDate() <= now) {
+          m_queue.push_back(std::ref(note));
+        }
       }
     }
   }
 
-  auto Recaller::interval(Result result, Days currentInterval) -> Days
+  bool Recaller::queryNote()
   {
-    double newInterval{};
-    using enum Result;
-    switch(result) {
-      case Easy: {
-        newInterval = currentInterval.count() * easeMod * intervalMod * easyBonus;
-        easeMod += 0.15;
-      }
-      case Good: {
-        newInterval = currentInterval.count() * easeMod * intervalMod;
-      }
-      case Hard: {
-        newInterval = currentInterval.count() * hardMod * intervalMod;
-        easeMod -= 0.15;
-      }
-      case Again: {
-        newInterval /= 2;
-        easeMod -= 0.2;
-      }
-    }
+    if(!m_queue.empty()) {
+      m_currentNotePath = m_queue.front().get().path();
+      m_queue.pop_front();
+      m_invalid = false;
+    } else {
+      m_invalid = true;
+      return false;
+    };
 
-    easeMod = std::min(easeMod, 2.5);
-    easeMod = std::max(easeMod, 1.0);
-
-    return Days{newInterval};
+    return true;
   }
 
   void Recaller::buildComponent()
   {
     using namespace ftxui;
-    std::string noteName{"my note name"};
-    auto window = Renderer([this, noteName] {
-      return vbox({
+
+    m_menuOption = {
+      .on_change = [this] { updateIncrement(static_cast<Result>(m_menuEntry)); },
+      .on_enter = [this] { 
+        m_menuEntry = 0;
+        m_menuOption.focused_entry = m_menuEntry; 
+        applySelection(static_cast<Result>(m_menuEntry)); },
+    };
+
+    m_menu = Menu(&m_menuEntries, &m_menuEntry, &m_menuOption);
+
+    auto window = Renderer(m_menu, [this] {
+      if(m_invalid) {
+        return hbox({text("No available notes")});
+      }
+
+      Element selector = vbox({
         text(" [" + m_tag + "] ") | center,
-        text(noteName) | center,
+        text(" " + currentNote().name() + " ") | center,
+        m_menu->Render(),
+      });
+
+      auto noteInfo = vbox({
+        text(" next recall ") | center,
+        incrementText(),
+      });
+
+      return hbox({
+        selector,
         separator(),
-        text(" [1]  Again "),
-        text(" [2]  Hard  "),
-        text(" [3]  Good  "),
-        text(" [4]  Easy  "),
+        noteInfo,
       });
     });
+
     m_component = window | borderRounded | center | CatchEvent(std::bind(&Recaller::navigation, this, std::placeholders::_1));
+  }
+
+  auto Recaller::incrementText() -> ftxui::Element
+  {
+    using namespace ftxui;
+    using Hours = std::chrono::duration<double, std::chrono::hours::period>;
+    using Days = std::chrono::duration<double, std::chrono::days::period>;
+
+    Seconds durationSecs = m_recallInterval;
+    Days durationDays = std::chrono::duration_cast<Days>(m_recallInterval);
+    Hours durationHours = std::chrono::duration_cast<Hours>(m_recallInterval);
+
+    std::stringstream stream{};
+    stream << std::fixed << std::setprecision(2);
+    Element txt{};
+    if(durationDays.count() > 1.0) {
+      stream << durationDays.count();
+      txt = text(" " + stream.str() + " days ") | center;
+    } else if(durationHours.count() > 1.0) {
+      stream << durationHours.count();
+      txt = text(" " + stream.str() + " hours ") | center;
+    } else {
+      txt = text(" " + std::to_string(durationSecs.count()) + " seconds ") | center;
+    }
+
+    return txt;
+  }
+
+  auto Recaller::intervalIncrement(Result result, Seconds currentInterval, double easeModifier, double easeBonus) -> std::pair<Seconds, double>
+  {
+    assert(easeModifier > 0 && "Invalid modifier");
+
+    using enum Result;
+    using namespace std::chrono;
+    currentInterval = seconds{std::max(currentInterval.count(), m_minimalInterval)};
+
+    double newInterval{};
+    switch(result) {
+      case Again: {
+        newInterval = currentInterval.count() / 2.0;
+        easeModifier -= 0.2;
+        break;
+      }
+      case Hard: {
+        newInterval = currentInterval.count() * m_hardModifier * m_intervalModifier;
+        easeModifier -= 0.15;
+        break;
+      }
+      case Good: {
+        newInterval = currentInterval.count() * easeModifier * m_intervalModifier;
+        break;
+      }
+      case Easy: {
+        newInterval = currentInterval.count() * easeModifier * m_intervalModifier * easeBonus;
+        easeModifier += 0.15;
+        break;
+      }
+      case None: {
+        newInterval = currentInterval.count();
+        break;
+      }
+    }
+
+    auto max = std::max(static_cast<std::int64_t>(newInterval), m_minimalInterval);
+    seconds intervalSeconds = seconds{max};
+    return {intervalSeconds, easeModifier};
+  }
+
+  void Recaller::updateIncrement(Result result)
+  {
+    m_recallInterval = {};
+
+    // Recall increment
+    Seconds currentInterval = currentNote().intervalDuration();
+    double easeModifier = currentNote().easeModifier();
+
+    auto [interval, ease] = intervalIncrement(result, currentInterval, easeModifier, m_easeBonus);
+    m_currentEase = ease;
+    m_recallInterval = interval;
+  }
+
+  void Recaller::applySelection(Result result)
+  {
+    m_controller.setNoteEaseModifier(m_currentNotePath, m_currentEase);
+    m_controller.incrementNoteRecall(m_currentNotePath, m_recallInterval);
+    // queryNote();
+    updateIncrement(result);
+  }
+
+  bool Recaller::navigation(ftxui::Event event)
+  {
+    using namespace ftxui;
+    if(event == Event::Character('`')) {
+      m_callbacks.minimize();
+      return true;
+    }
+
+    return false;
   }
 }

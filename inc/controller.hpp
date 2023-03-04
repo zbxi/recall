@@ -10,6 +10,9 @@ namespace zbxi::recall
   class Locator;
   class Controller
   {
+    template<typename T>
+    using Timepoint = std::chrono::time_point<std::chrono::system_clock, T>;
+
   public:
     Controller(Locator& locator);
     ~Controller();
@@ -18,7 +21,8 @@ namespace zbxi::recall
     void openNote(std::string);
     void addNoteTag(std::filesystem::path, std::string);
     void setNoteLabel(std::filesystem::path, Note::Label);
-    void setNoteRecallDate(std::filesystem::path, std::chrono::system_clock::time_point);
+    void incrementNoteRecall(std::filesystem::path, std::chrono::seconds);
+    void setNoteEaseModifier(std::filesystem::path, double);
 
   private:
     Locator& m_locator;

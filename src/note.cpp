@@ -2,24 +2,31 @@
 
 namespace zbxi::recall
 {
-  Note::Note(std::string const& text,
-    std::string name,
+
+  Note::Note(
     std::filesystem::path filePath,
-    time_point modificationDate,
-    time_point recallDate,
+    std::string const& text,
+    std::string name,
     Label label,
+    Timepoint<std::chrono::milliseconds> modificationDate,
+    Timepoint<std::chrono::seconds> recalledDate,
+    Duration intervalDuration,
+    double inEaseModifier,
     std::vector<std::string> tags) :
+    m_filePath{filePath},
     m_text{text},
     m_name{name},
-    m_filePath{filePath},
-    m_modificationDate{modificationDate},
-    m_recallDate{recallDate},
     m_label{label},
+    m_modificationDate{modificationDate},
+    m_recallDate{recalledDate},
+    m_intervalDuration{intervalDuration},
+    m_easeModifier{inEaseModifier},
     m_tags{tags.begin(), tags.end()}
   {
-    assert(!name.empty() &&
-           !m_filePath.empty() &&
-           modificationDate.time_since_epoch().count() != 0);
+    assert(!name.empty());
+    assert(!m_filePath.empty());
+    assert(modificationDate.time_since_epoch().count() != 0);
+    assert(m_easeModifier >= Note::minimalEase() && m_easeModifier <= Note::maximalEase());
     // auto constexpr lvl = 1;
     // parseText(m_text, &m_headers, lvl);
   }
@@ -34,9 +41,16 @@ namespace zbxi::recall
     m_label = label;
   }
 
-  void Note::setRecallDate(std::chrono::system_clock::time_point date)
+  void Note::incrementRecallDate(std::chrono::seconds duration)
   {
-    m_recallDate = date;
+    m_intervalDuration = duration;
+    m_recallDate += duration;
+  }
+
+  void Note::setEaseModifier(double value)
+  {
+    value = std::clamp(value, Note::minimalEase(), Note::maximalEase());
+    m_easeModifier = value;
   }
 
   void Note::parseText(std::string_view text, std::vector<Header>* headers, std::int_fast8_t minHeaderLevel)

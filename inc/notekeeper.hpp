@@ -26,13 +26,18 @@ namespace zbxi::recall
   // Manages Vault-specific Data
   class Notekeeper
   {
-    using time_point = std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds>;
+    template<typename T>
+    using Timepoint = std::chrono::time_point<std::chrono::system_clock, T>;
+    using Duration = std::chrono::seconds;
+
     struct DataRow
     {
       std::string name{};
       std::string label{};
-      time_point modificationDate{};
-      time_point recallDate{};
+      Timepoint<std::chrono::milliseconds> modificationDate{};
+      Timepoint<std::chrono::seconds> recallDate{};
+      Duration intervalDuration{};
+      double easeMod{};
       std::vector<std::string> tags{};
     };
 

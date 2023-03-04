@@ -73,19 +73,37 @@ namespace zbxi::recall::component
     m_fileNames.clear();
 
     // Folders
-    for(auto& e : m_folder.folders()) {
-      auto path = e.path();
-      if(path.string().front() != '.') {
-        m_fileNames.push_back(path);
-      }
-    }
+    // for(auto& e : m_folder.folders()) {
+    //   auto path = e.path();
+    //   if(path.string().front() != '.') {
+    //     m_fileNames.push_back(path);
+    //   }
+    // }
 
-    // Files
-    for(auto& e : m_folder.files()) {
-      if(fs::is_regular_file(e) && e.extension() == ".md") {
-        m_fileNames.push_back(e);
+    std::list<std::filesystem::path> files{m_folder.files().begin(), m_folder.files().end()};
+
+    auto addThose = [&](Note::Label label) {
+      auto valid = [](std::filesystem::path path) { return fs::is_regular_file(path) && path.extension() == ".md"; };
+      auto categorized = [this](std::filesystem::path path, Note::Label label) -> bool { return m_presenter.notekeeper().noteByPath(path).label() == label; };
+      for(auto it = files.begin(); it != files.end();) {
+        auto& e = *it;
+        if(valid(e) && categorized(e, label)) {
+          m_fileNames.push_back(e);
+          auto last = it;
+          ++it;
+          files.erase(last);
+          continue;
+        }
+        ++it;
       }
-    }
+    };
+
+
+    addThose(Note::Label::none);
+    addThose(Note::Label::card);
+    addThose(Note::Label::content);
+    addThose(Note::Label::map_of_content);
+    addThose(Note::Label::ignored);
 
     auto fileName = [this](std::filesystem::path e) -> std::string {
       std::size_t pathLength = m_presenter.notekeeper().vaultFolder().path().string().length() + 1; // +1 for the '/'

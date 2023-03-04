@@ -21,8 +21,6 @@ namespace zbxi::recall::component
     auto currentNote() -> Note const& { return m_presenter.notekeeper().noteByPath(m_info.path); }
 
     FileExplorer::EntryInfo m_info{};
-    bool m_shouldPreview{};
-    bool m_canPreview{};
     ftxui::MenuOption m_menuOption;
     ftxui::InputOption m_inputOption;
 
